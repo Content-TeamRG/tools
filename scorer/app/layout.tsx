@@ -13,6 +13,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-zinc-950 text-zinc-100 antialiased">
         <NavBar />
         <main>{children}</main>
+        <footer className="text-center py-6 text-xs text-zinc-600">
+          Made by Navya
+        </footer>
       </body>
     </html>
   );
