@@ -167,9 +167,6 @@ Browser
         lib/db.ts              ← Persist ScoreReport to localStorage or Supabase
 ```
 
-### Why server-side URL fetching?
-Browsers block cross-origin requests (CORS). If the frontend fetched URLs directly, it would fail for most websites. The `/api/fetch-url` route runs on the server where CORS doesn't apply, fetches the HTML, and returns it to the client. This means the tool works on any public URL without needing browser extensions or CORS proxies.
-
 ### Why no AI API calls?
 All 29 criteria are deterministic rule-based checks — regex patterns, word counts, structural analysis of the DOM. There is no ambiguity in whether a heading contains a question mark or a paragraph has more than 3 sentences. Using an LLM for evaluation would add cost, latency, and non-determinism to checks that have exact pass/fail definitions. The entire scoring engine runs in milliseconds with zero API cost.
 
@@ -359,38 +356,7 @@ npm start
 
 ---
 
-## 9. Deployment
-
-The app is deployed on **Vercel** from the `main` branch. The `vercel.json` at the repo root tells Vercel to treat `scorer/` as the project root.
-
-### Vercel setup
-1. Import `Content-TeamRG/tools` on vercel.com
-2. Set **Root Directory** to `scorer`
-3. Framework will auto-detect as Next.js
-4. Click Deploy
-
-### Making the app publicly accessible
-By default Vercel protects deployments behind Vercel authentication (team members only). To allow anyone with the link to use the tool:
-
-**Project Settings → Deployment Protection → toggle Vercel Authentication OFF → Save**
-
-### Environment variables on Vercel
-Add these in Project Settings → Environment Variables if using Supabase:
-```
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-```
-
-### Alternative: Netlify
-If Vercel's org restrictions are an issue (Pro plan required for private org repos):
-1. Import on netlify.com
-2. Base directory: `scorer`
-3. Build command: `npm run build`
-4. Publish directory: `.next`
-
----
-
-## 10. How to use the tool
+## 9. How to use the tool
 
 ### Analyzing a single article
 
@@ -459,35 +425,10 @@ Every report is automatically saved to localStorage with a unique ID. Click the 
 
 Click **PDF** on any report view. The tool captures the visible report as a high-resolution image and writes it to a PDF file. The file is named `llm-score-[grade]-[timestamp].pdf`. Use this for sending to stakeholders or attaching to content briefs.
 
----
-
-## 11. Adding Supabase for team history
-
-Without Supabase, reports are saved in the browser's localStorage — they disappear if you clear the browser or switch devices. Supabase makes reports persistent and shareable across the team.
-
-### Setup
-1. Create a free project at supabase.com
-2. Open the SQL editor and run the contents of `scorer/supabase-schema.sql`:
-```sql
-create table if not exists reports (
-  id uuid default gen_random_uuid() primary key,
-  created_at timestamptz default now() not null,
-  report jsonb not null,
-  share_token text unique
-);
-create index if not exists reports_share_token_idx on reports (share_token);
-```
-3. Go to Project Settings → API and copy:
-   - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
-   - **anon public key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-4. Add both to `.env.local` locally and to Vercel Environment Variables in production
-5. Redeploy
-
-Once configured, all reports are saved to Supabase automatically and shareable report links work across any device.
 
 ---
 
-## 12. Design decisions
+## 10. Design decisions
 
 ### Why rule-based and not LLM-based scoring?
 The 29 criteria all have exact, deterministic pass/fail definitions. "Does the H1 contain a question mark?" is not a judgment call — it either does or it doesn't. Using an LLM for these checks would add:
@@ -515,36 +456,6 @@ Vercel's Image Optimization requires a paid plan for high-traffic use. Setting `
 
 ---
 
-## 13. Extending the tool
-
-### Adding a new scoring criterion
-1. Decide which section it belongs to (A–F)
-2. Open `lib/scorer/section-[x].ts`
-3. Add a new exported function following this pattern:
-```ts
-export function scoreX9(content: ParsedContent): CriterionResult {
-  const pass = /* your rule logic */;
-  return {
-    id: 'X9',
-    label: 'Human-readable criterion name',
-    impact: 'critical' | 'high' | 'medium',
-    section: 'X',
-    points_awarded: pass ? 2 : 0,
-    status: pass ? 'pass' : 'fail',
-    details: /* optional debug string */,
-    fail_explanation: /* why this failure reduces citation probability */,
-    remediation: /* exact fix instruction */,
-  };
-}
-```
-4. Import and call it in `lib/scorer/index.ts` inside the `scoreContent` function
-5. The report, dashboard, and all UI update automatically — no other changes needed
-
-### Adding a new page or feature
-The app uses Next.js App Router. Add a new page by creating `app/[route]/page.tsx`. API routes go in `app/api/[route]/route.ts`.
-
-### Switching from localStorage to Supabase
-Follow section 11. The `lib/db.ts` file handles both — it checks if Supabase credentials are present and falls back to localStorage automatically. No code changes needed.
 
 ### Planned future features
 - **Content Brief Generator** — auto-generate a blank AEO brief template from a keyword
