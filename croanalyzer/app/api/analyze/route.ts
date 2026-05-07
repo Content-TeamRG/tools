@@ -35,9 +35,9 @@ function rateLimitOk(ip: string): boolean {
 export async function POST(req: NextRequest) {
   const started = Date.now();
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.GETTHIS) {
     return NextResponse.json(
-      { error: "Server is missing ANTHROPIC_API_KEY" },
+      { error: "Server is missing API key" },
       { status: 500 },
     );
   }

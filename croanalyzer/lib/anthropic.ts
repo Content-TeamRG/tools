@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { SystemBlock } from "./prompts";
 
 const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+  apiKey: process.env.GETTHIS,
 });
 
 const HAIKU = "claude-haiku-4-5-20251001";
