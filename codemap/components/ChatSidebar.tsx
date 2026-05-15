@@ -13,9 +13,11 @@ const QUICK_ASKS = [
 
 type Props = {
   repoName: string
+  prefillMessage?: string
+  onPrefillConsumed?: () => void
 }
 
-export default function ChatSidebar({ repoName }: Props) {
+export default function ChatSidebar({ repoName, prefillMessage, onPrefillConsumed }: Props) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
@@ -29,6 +31,15 @@ export default function ChatSidebar({ repoName }: Props) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  // Auto-send prefill messages from map clicks
+  useEffect(() => {
+    if (prefillMessage && !streaming) {
+      sendMessage(prefillMessage)
+      onPrefillConsumed?.()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillMessage])
 
   async function sendMessage(text: string) {
     if (!text.trim() || streaming) return

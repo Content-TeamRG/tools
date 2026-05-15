@@ -1,3 +1,18 @@
+// ─── Snapshot (fetched from GitHub) ──────────────────────────────────────────
+
+export type TodoItem = {
+  file: string
+  line: number
+  text: string
+  type: "TODO" | "FIXME" | "HACK" | "XXX"
+}
+
+export type SecretMatch = {
+  file: string
+  lineNum: number
+  patternType: string
+}
+
 export type RepoSnapshot = {
   fetchedAt: string
   files: Array<{
@@ -6,7 +21,13 @@ export type RepoSnapshot = {
     size: number
   }>
   packageJson?: object
+  todos: TodoItem[]
+  secretsFound: SecretMatch[]
+  repoIsPrivate: boolean
+  gitignoreContent: string
 }
+
+// ─── Analysis (AI + computed) ─────────────────────────────────────────────────
 
 export type ArchitectureMap = {
   summary: {
@@ -15,6 +36,7 @@ export type ArchitectureMap = {
     techStack: string[]
     lastAnalyzed: string
   }
+
   layers: Array<{
     id: string
     name: string
@@ -26,6 +48,14 @@ export type ArchitectureMap = {
     externalDeps: string[]
     internalDeps: string[]
   }>
+
+  fileGraph: Array<{
+    file: string
+    layerId: string
+    imports: string[]        // other files this imports (relative paths)
+    externalImports: string[] // npm packages
+  }>
+
   dataFlow: Array<{
     step: number
     title: string
@@ -33,6 +63,7 @@ export type ArchitectureMap = {
     from: string
     to: string
   }>
+
   bugs: Array<{
     id: string
     severity: "high" | "med" | "low"
@@ -42,6 +73,7 @@ export type ArchitectureMap = {
     fix: string
     category: "security" | "performance" | "error-handling" | "type-safety" | "other"
   }>
+
   stats: {
     totalFiles: number
     tsFiles: number
@@ -49,6 +81,43 @@ export type ArchitectureMap = {
     components: number
     linesEstimate: number
   }
+
+  codeHealth: {
+    score: number           // 0–100 computed
+    deadFiles: string[]
+    complexityHotspots: Array<{
+      file: string
+      complexityScore: number
+      reason: string
+    }>
+    duplicateBlocks: Array<{
+      description: string
+      files: string[]
+    }>
+    dependencyRisk: Array<{
+      package: string
+      issue: string
+      severity: "high" | "med" | "low"
+    }>
+  }
+
+  securityFlags: {
+    // pre-computed
+    secretsFound: SecretMatch[]
+    gitignoreMissing: string[]
+    repoIsPrivate: boolean
+    // AI-computed
+    unprotectedRoutes: Array<{ route: string; issues: string[] }>
+    corsIssues: Array<{ file: string; issue: string }>
+    errorLeakage: Array<{ file: string; issue: string }>
+  }
+
+  chatQueries: Array<{
+    timestamp: string
+    query: string
+    flagged: boolean
+    flagReason?: string
+  }>
 }
 
 export type Message = {
