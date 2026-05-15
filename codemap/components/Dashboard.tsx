@@ -25,7 +25,6 @@ export default function Dashboard({ data, repoName, branch }: Props) {
 
   const handleFileClick = useCallback((msg: string) => {
     setPrefillMessage(undefined)
-    // Small delay so useEffect in ChatSidebar fires even if same message
     setTimeout(() => setPrefillMessage(msg), 10)
   }, [])
 
@@ -39,23 +38,23 @@ export default function Dashboard({ data, repoName, branch }: Props) {
   const isGraphTab = tab === "map" || tab === "files"
 
   return (
-    <div className="flex h-screen bg-gray-950 overflow-hidden">
+    <div className="flex h-screen bg-white overflow-hidden">
       {/* Left panel */}
       <div className="flex flex-col min-w-0" style={{ width: "70%" }}>
         {/* Header */}
-        <header className="flex items-center gap-3 px-6 py-3 border-b border-gray-800 shrink-0">
+        <header className="flex items-center gap-3 px-6 py-3 border-b border-gray-200 shrink-0 bg-white">
           <span className="font-mono text-lg font-black tracking-tight" style={{ color: "#ff0000" }}>Code</span>
-          <span className="font-mono text-lg font-black tracking-tight text-white -ml-2">Map</span>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 font-medium">{repoName}</span>
-          <span className="text-xs px-2 py-0.5 rounded-full border font-mono" style={{ background: "#0000ff22", color: "#0000ff", borderColor: "#0000ff55" }}>
+          <span className="font-mono text-lg font-black tracking-tight text-gray-900 -ml-2">Map</span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium border border-gray-200">{repoName}</span>
+          <span className="text-xs px-2 py-0.5 rounded-full border font-mono" style={{ background: "#0000ff11", color: "#0000ff", borderColor: "#0000ff33" }}>
             {branch}
           </span>
-          <span className="text-xs text-gray-700 ml-1 hidden sm:block">
+          <span className="text-xs text-gray-400 ml-1 hidden sm:block">
             {new Date(data.summary.lastAnalyzed).toLocaleString()}
           </span>
           <div className="ml-auto flex items-center gap-2">
             <RefreshButton />
-            <div className="flex gap-0.5 bg-gray-900 rounded-lg p-1 border border-gray-800">
+            <div className="flex gap-0.5 bg-gray-100 rounded-lg p-1 border border-gray-200">
               {tabs.map((t) => (
                 <button
                   key={t.id}
@@ -74,11 +73,11 @@ export default function Dashboard({ data, repoName, branch }: Props) {
         </header>
 
         {/* Summary */}
-        <div className="px-6 py-2.5 bg-gray-900/40 border-b border-gray-800 shrink-0">
-          <p className="text-gray-400 text-sm">{data.summary.description}</p>
+        <div className="px-6 py-2.5 bg-gray-50 border-b border-gray-200 shrink-0">
+          <p className="text-gray-600 text-sm">{data.summary.description}</p>
           <div className="flex flex-wrap gap-1.5 mt-1.5">
             {data.summary.techStack.map((tech) => (
-              <span key={tech} className="text-xs px-2 py-0.5 rounded bg-gray-800 text-gray-500">{tech}</span>
+              <span key={tech} className="text-xs px-2 py-0.5 rounded bg-white text-gray-500 border border-gray-200">{tech}</span>
             ))}
           </div>
         </div>
@@ -90,7 +89,7 @@ export default function Dashboard({ data, repoName, branch }: Props) {
             {tab === "files" && <InteractiveFilesMap data={data} onFileClick={handleFileClick} />}
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="flex-1 overflow-y-auto px-6 py-5 bg-white">
             {tab === "bugs" && <BugTracker bugs={data.bugs} />}
             {tab === "stats" && <StatsPanel data={data} />}
           </div>
@@ -98,7 +97,7 @@ export default function Dashboard({ data, repoName, branch }: Props) {
       </div>
 
       {/* Right chat panel */}
-      <div className="shrink-0 border-l border-gray-800" style={{ width: "30%" }}>
+      <div className="shrink-0 border-l border-gray-200" style={{ width: "30%" }}>
         <ChatSidebar
           repoName={repoName}
           prefillMessage={prefillMessage}

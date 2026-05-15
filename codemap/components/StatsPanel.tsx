@@ -7,14 +7,14 @@ function HealthScore({ score }: { score: number }) {
   const label = score >= 80 ? "Healthy" : score >= 60 ? "Needs Work" : "Critical"
   const pct = score
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900 p-5 flex items-center gap-6">
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5 flex items-center gap-6">
       <div>
         <div className="text-6xl font-black" style={{ color }}>{score}</div>
         <div className="text-xs font-semibold mt-1" style={{ color }}>{label}</div>
         <div className="text-xs text-gray-600 mt-0.5">Health Score / 100</div>
       </div>
       <div className="flex-1">
-        <div className="h-3 rounded-full bg-gray-800 overflow-hidden">
+        <div className="h-3 rounded-full bg-gray-200 overflow-hidden">
           <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: color }} />
         </div>
         <div className="flex justify-between text-xs text-gray-700 mt-1">
@@ -31,7 +31,7 @@ function SectionHeader({ title }: { title: string }) {
 
 function StatCard({ label, value, color = "#ffffff" }: { label: string; value: string | number; color?: string }) {
   return (
-    <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
+    <div className="rounded-lg border border-gray-200 bg-white shadow-sm p-4">
       <div className="text-2xl font-bold" style={{ color }}>{value}</div>
       <div className="text-xs text-gray-500 mt-1">{label}</div>
     </div>
@@ -42,10 +42,10 @@ function SecurityRow({ ok, label, detail }: { ok: boolean | null; label: string;
   const color = ok === null ? "#ff991c" : ok ? "#008000" : "#ff0000"
   const icon = ok === null ? "⚠" : ok ? "✓" : "✗"
   return (
-    <div className="flex items-start gap-3 py-2.5 border-b border-gray-800/50 last:border-0">
+    <div className="flex items-start gap-3 py-2.5 border-b border-gray-100 last:border-0">
       <span className="text-sm font-bold mt-0.5 flex-shrink-0" style={{ color }}>{icon}</span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-gray-300">{label}</p>
+        <p className="text-sm text-gray-700">{label}</p>
         {detail && <p className="text-xs text-gray-600 mt-0.5">{detail}</p>}
       </div>
     </div>
@@ -106,14 +106,14 @@ export default function StatsPanel({ data }: Props) {
 
       {/* File type chart */}
       <SectionHeader title="File Distribution" />
-      <div className="rounded-xl border border-gray-800 bg-gray-900 p-4 space-y-3">
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 space-y-3">
         {fileTypes.map((t) => (
           <div key={t.label}>
             <div className="flex justify-between text-xs mb-1">
               <span className="text-gray-400">{t.label}</span>
               <span className="text-gray-600">{t.count}</span>
             </div>
-            <div className="h-2 rounded-full bg-gray-800 overflow-hidden">
+            <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
               <div className="h-full rounded-full" style={{ width: `${(t.count / maxCount) * 100}%`, background: t.color }} />
             </div>
           </div>
@@ -124,13 +124,13 @@ export default function StatsPanel({ data }: Props) {
       {codeHealth?.deadFiles && (
         <>
           <SectionHeader title="Dead Files" />
-          <div className="rounded-xl border border-gray-800 bg-gray-900 p-4">
+          <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
             {codeHealth.deadFiles.length === 0 ? (
               <p className="text-sm text-gray-500">No dead files found — everything is imported somewhere.</p>
             ) : (
               <div className="space-y-1">
                 {codeHealth.deadFiles.map((f) => (
-                  <div key={f} className="text-xs font-mono px-2 py-1 rounded bg-gray-800 text-gray-400 flex items-center gap-2">
+                  <div key={f} className="text-xs font-mono px-2 py-1 rounded bg-gray-200 text-gray-400 flex items-center gap-2">
                     <span style={{ color: "#ff0000" }}>⊘</span> {f}
                   </div>
                 ))}
@@ -146,9 +146,9 @@ export default function StatsPanel({ data }: Props) {
           <SectionHeader title="Complexity Hotspots" />
           <div className="space-y-2">
             {codeHealth.complexityHotspots.map((h) => (
-              <div key={h.file} className="rounded-lg border border-gray-800 bg-gray-900 p-3">
+              <div key={h.file} className="rounded-lg border border-gray-200 bg-white shadow-sm p-3">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-mono text-gray-300">{h.file}</span>
+                  <span className="text-xs font-mono text-gray-700">{h.file}</span>
                   <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ background: "#ff000022", color: "#ff0000" }}>
                     Score {h.complexityScore}
                   </span>
@@ -168,12 +168,12 @@ export default function StatsPanel({ data }: Props) {
             {codeHealth.dependencyRisk.map((d, i) => {
               const color = d.severity === "high" ? "#ff0000" : d.severity === "med" ? "#ff991c" : "#008000"
               return (
-                <div key={i} className="rounded-lg border border-gray-800 bg-gray-900 p-3 flex items-start gap-3">
+                <div key={i} className="rounded-lg border border-gray-200 bg-white shadow-sm p-3 flex items-start gap-3">
                   <span className="text-xs font-bold px-2 py-0.5 rounded capitalize flex-shrink-0" style={{ background: color + "22", color }}>
                     {d.severity}
                   </span>
                   <div>
-                    <p className="text-xs font-mono text-gray-300">{d.package}</p>
+                    <p className="text-xs font-mono text-gray-700">{d.package}</p>
                     <p className="text-xs text-gray-500 mt-0.5">{d.issue}</p>
                   </div>
                 </div>
@@ -189,11 +189,11 @@ export default function StatsPanel({ data }: Props) {
           <SectionHeader title="Duplicate Code" />
           <div className="space-y-2">
             {codeHealth.duplicateBlocks.map((d, i) => (
-              <div key={i} className="rounded-lg border border-gray-800 bg-gray-900 p-3">
+              <div key={i} className="rounded-lg border border-gray-200 bg-white shadow-sm p-3">
                 <p className="text-xs text-gray-400 mb-1">{d.description}</p>
                 <div className="flex flex-wrap gap-1">
                   {d.files.map((f) => (
-                    <span key={f} className="text-xs font-mono px-1.5 py-0.5 rounded bg-gray-800 text-gray-500">{f}</span>
+                    <span key={f} className="text-xs font-mono px-1.5 py-0.5 rounded bg-gray-200 text-gray-500">{f}</span>
                   ))}
                 </div>
               </div>
@@ -204,7 +204,7 @@ export default function StatsPanel({ data }: Props) {
 
       {/* Security flags */}
       <SectionHeader title="Security" />
-      <div className="rounded-xl border border-gray-800 bg-gray-900 p-4">
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
         <SecurityRow
           ok={securityFlags?.repoIsPrivate ?? true}
           label={securityFlags?.repoIsPrivate ? "Repo is private" : "Repo is PUBLIC — anyone can read your code!"}
@@ -251,7 +251,7 @@ export default function StatsPanel({ data }: Props) {
       {chatQueries && chatQueries.length > 0 && (
         <>
           <SectionHeader title="Chatbot Queries" />
-          <div className="rounded-xl border border-gray-800 bg-gray-900 p-4">
+          <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs text-gray-500">{chatQueries.length} total queries</span>
               {flaggedQueries.length > 0 && (
@@ -262,13 +262,13 @@ export default function StatsPanel({ data }: Props) {
             </div>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {[...chatQueries].reverse().map((q, i) => (
-                <div key={i} className={`rounded px-3 py-2 text-xs ${q.flagged ? "border" : "bg-gray-800/60"}`}
+                <div key={i} className={`rounded px-3 py-2 text-xs ${q.flagged ? "border" : "bg-gray-200/60"}`}
                   style={q.flagged ? { borderColor: "#ff000055", background: "#ff000011" } : {}}>
                   <div className="flex items-center justify-between gap-2 mb-0.5">
                     <span className="text-gray-500">{new Date(q.timestamp).toLocaleTimeString()}</span>
                     {q.flagged && <span style={{ color: "#ff0000" }}>⚑ {q.flagReason}</span>}
                   </div>
-                  <p className="text-gray-300 truncate">{q.query}</p>
+                  <p className="text-gray-700 truncate">{q.query}</p>
                 </div>
               ))}
             </div>

@@ -55,8 +55,8 @@ function LayerNode({ data }: NodeProps<LayerNodeData>) {
       className="rounded-xl overflow-hidden cursor-pointer transition-all duration-150"
       style={{
         width: 230,
-        border: `2px solid ${highlighted ? color : dimmed ? "#1f2937" : color + "99"}`,
-        background: "#111827",
+        border: `2px solid ${highlighted ? color : dimmed ? "#e5e7eb" : color + "99"}`,
+        background: "#ffffff",
         opacity: dimmed ? 0.35 : 1,
         boxShadow: highlighted ? `0 0 24px ${color}55` : "none",
       }}
@@ -67,7 +67,7 @@ function LayerNode({ data }: NodeProps<LayerNodeData>) {
 
       <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: `1px solid ${color}33`, background: color + "11" }}>
         <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
-        <span className="font-bold text-white text-sm flex-1 truncate">{layer.name}</span>
+        <span className="font-bold text-gray-900 text-sm flex-1 truncate">{layer.name}</span>
         <button
           onClick={(e) => { e.stopPropagation(); onToggle(layer.id) }}
           className="text-gray-600 hover:text-gray-300 text-xs"
@@ -76,6 +76,7 @@ function LayerNode({ data }: NodeProps<LayerNodeData>) {
 
       <div className="px-3 py-2">
         <p className="text-xs text-gray-500 mb-2">{layer.purpose}</p>
+
         <div
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono border cursor-pointer hover:opacity-80"
           style={{ background: color + "22", color, borderColor: color + "55" }}
@@ -90,7 +91,7 @@ function LayerNode({ data }: NodeProps<LayerNodeData>) {
             {layer.files.filter((f) => f !== layer.mainFile).map((f) => (
               <div
                 key={f}
-                className="text-xs font-mono text-gray-500 px-2 py-0.5 rounded bg-gray-800/60 truncate cursor-pointer hover:text-gray-300 hover:bg-gray-700/60"
+                className="text-xs font-mono text-gray-500 px-2 py-0.5 rounded bg-gray-100 truncate cursor-pointer hover:text-gray-800 hover:bg-gray-200"
                 onClick={(e) => { e.stopPropagation(); onFileClick(f, layer.name) }}
                 title="Click to ask about this file"
               >
@@ -114,30 +115,30 @@ function SidePanel({ layer, color, allLayers, onClose, onFileClick }: {
 }) {
   const depNames = layer.internalDeps.map((id) => allLayers.find((l) => l.id === id)?.name ?? id)
   return (
-    <div className="absolute top-0 right-0 h-full w-72 bg-gray-950 border-l border-gray-800 z-10 overflow-y-auto flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800" style={{ borderLeftColor: color, borderLeftWidth: 3 }}>
+    <div className="absolute top-0 right-0 h-full w-72 bg-white border-l border-gray-200 z-10 overflow-y-auto flex flex-col shadow-xl">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200" style={{ borderLeftColor: color, borderLeftWidth: 3 }}>
         <div>
-          <h2 className="text-white font-bold text-sm">{layer.name}</h2>
+          <h2 className="text-gray-900 font-bold text-sm">{layer.name}</h2>
           <p className="text-xs mt-0.5 font-medium" style={{ color }}>{layer.purpose}</p>
         </div>
-        <button onClick={onClose} className="text-gray-600 hover:text-white text-xl leading-none">×</button>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-900 text-xl leading-none">×</button>
       </div>
       <div className="p-4 space-y-4 flex-1">
         <div>
-          <p className="text-xs text-gray-600 uppercase font-semibold mb-1">What it does</p>
-          <p className="text-gray-300 text-sm leading-relaxed">{layer.plain}</p>
+          <p className="text-xs text-gray-400 uppercase font-semibold mb-1">What it does</p>
+          <p className="text-gray-700 text-sm leading-relaxed">{layer.plain}</p>
         </div>
         <div>
-          <p className="text-xs text-gray-600 uppercase font-semibold mb-2">Files <span className="text-gray-700 normal-case">(click to ask)</span></p>
+          <p className="text-xs text-gray-400 uppercase font-semibold mb-2">Files <span className="text-gray-300 normal-case">(click to ask)</span></p>
           <div className="space-y-1">
             {layer.files.map((f) => (
               <div
                 key={f}
                 onClick={() => onFileClick(f, layer.name)}
                 className={`text-xs font-mono px-2 py-1 rounded flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity ${
-                  f === layer.mainFile ? "border" : "bg-gray-800/80 text-gray-400 hover:bg-gray-700/80"
+                  f === layer.mainFile ? "border" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
-                style={f === layer.mainFile ? { background: color + "22", color, borderColor: color + "55" } : {}}
+                style={f === layer.mainFile ? { background: color + "15", color, borderColor: color + "44" } : {}}
               >
                 {f === layer.mainFile && <span>★</span>} {f}
               </div>
@@ -269,15 +270,16 @@ export default function InteractiveMap({ data, onFileClick }: Props) {
         nodeTypes={nodeTypes}
         fitView fitViewOptions={{ padding: 0.2 }}
         minZoom={0.2} maxZoom={2.5}
+        nodesDraggable={false}
         onPaneClick={() => setSelectedLayer(null)}
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="#0f172a" gap={24} />
-        <Controls className="!bg-gray-900 !border-gray-700" />
+        <Background color="#e5e7eb" gap={24} style={{ background: "#ffffff" }} />
+        <Controls />
         <MiniMap
-          nodeColor={(n) => (n.data as LayerNodeData)?.color ?? "#374151"}
-          maskColor="#00000099"
-          className="!bg-gray-950 !border-gray-800"
+          nodeColor={(n) => (n.data as LayerNodeData)?.color ?? "#d1d5db"}
+          maskColor="#ffffff88"
+          className="!border-gray-200"
         />
       </ReactFlow>
 

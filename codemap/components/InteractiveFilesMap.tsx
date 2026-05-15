@@ -10,12 +10,40 @@ import "reactflow/dist/style.css"
 import type { ArchitectureMap } from "@/lib/types"
 import { BRAND_COLORS } from "./InteractiveMap"
 
-type FileNode = ArchitectureMap["fileGraph"][0]
+type FileEntry = ArchitectureMap["fileGraph"][0]
+
+// ─── Path normalisation ───────────────────────────────────────────────────────
+// Claude returns imports like "./lib/auth", "../components/Button", "lib/auth.ts"
+// We normalise to bare path without leading ./ or extension so we can fuzzy-match
+
+function normPath(p: string): string {
+  return p
+    .replace(/^\.\.?\//g, "")   // strip leading ./ or ../
+    .replace(/\.(ts|tsx|js|jsx)$/, "")  // strip extension
+    .toLowerCase()
+}
+
+function buildFileIndex(fileGraph: FileEntry[]): Map<string, string> {
+  const m = new Map<string, string>()
+  fileGraph.forEach((f) => {
+    m.set(normPath(f.file), f.file)
+    // also index by basename alone
+    const base = f.file.split("/").pop() ?? ""
+    m.set(normPath(base), f.file)
+  })
+  return m
+}
+
+function resolveImport(imp: string, index: Map<string, string>): string | null {
+  return index.get(normPath(imp)) ?? index.get(normPath(imp.split("/").pop() ?? "")) ?? null
+}
+
+// ─── Layout ───────────────────────────────────────────────────────────────────
 
 function layoutElements(nodes: Node[], edges: Edge[]) {
   const g = new dagre.graphlib.Graph()
   g.setDefaultEdgeLabel(() => ({}))
-  g.setGraph({ rankdir: "LR", ranksep: 80, nodesep: 30 })
+  g.setGraph({ rankdir: "LR", ranksep: 80, nodesep: 28 })
   nodes.forEach((n) => g.setNode(n.id, { width: 160, height: 44 }))
   edges.forEach((e) => g.setEdge(e.source, e.target))
   dagre.layout(g)
@@ -28,13 +56,15 @@ function layoutElements(nodes: Node[], edges: Edge[]) {
   }
 }
 
+// ─── Node ─────────────────────────────────────────────────────────────────────
+
 type FileNodeData = {
   file: string
   color: string
   layerName: string
   selected: boolean
   dimmed: boolean
-  onClick: (file: string, layerName: string) => void
+  onClick: (file: string) => void
 }
 
 function FileNodeComponent({ data }: NodeProps<FileNodeData>) {
@@ -42,22 +72,21 @@ function FileNodeComponent({ data }: NodeProps<FileNodeData>) {
   const name = file.split("/").pop() ?? file
   return (
     <div
-      onClick={() => onClick(file, layerName)}
+      onClick={() => onClick(file)}
       className="rounded-lg cursor-pointer transition-all duration-150 flex items-center px-3"
       style={{
-        width: 160,
-        height: 44,
-        border: `1.5px solid ${selected ? color : dimmed ? "#1f2937" : color + "66"}`,
-        background: selected ? color + "22" : "#111827",
-        opacity: dimmed ? 0.25 : 1,
-        boxShadow: selected ? `0 0 16px ${color}44` : "none",
+        width: 160, height: 44,
+        border: `2px solid ${selected ? color : dimmed ? "#e5e7eb" : color + "77"}`,
+        background: selected ? color + "15" : "#ffffff",
+        opacity: dimmed ? 0.3 : 1,
+        boxShadow: selected ? `0 0 14px ${color}33` : "0 1px 3px rgba(0,0,0,0.08)",
       }}
     >
-      <Handle type="target" position={Position.Left} style={{ background: color, border: "none", width: 6, height: 6 }} />
-      <Handle type="source" position={Position.Right} style={{ background: color, border: "none", width: 6, height: 6 }} />
-      <div className="overflow-hidden">
-        <div className="text-xs font-mono font-semibold text-white truncate" style={{ maxWidth: 130 }}>{name}</div>
-        <div className="text-xs truncate mt-0.5" style={{ color: color + "aa", maxWidth: 130 }}>{layerName}</div>
+      <Handle type="target" position={Position.Left} style={{ background: color, border: "none", width: 7, height: 7 }} />
+      <Handle type="source" position={Position.Right} style={{ background: color, border: "none", width: 7, height: 7 }} />
+      <div className="overflow-hidden w-full">
+        <div className="text-xs font-mono font-semibold text-gray-900 truncate">{name}</div>
+        <div className="text-xs truncate mt-0.5 font-medium" style={{ color: color, opacity: 0.75 }}>{layerName}</div>
       </div>
     </div>
   )
@@ -65,12 +94,13 @@ function FileNodeComponent({ data }: NodeProps<FileNodeData>) {
 
 const nodeTypes = { fileNode: FileNodeComponent }
 
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
 type Props = { data: ArchitectureMap; onFileClick: (msg: string) => void }
 
 export default function InteractiveFilesMap({ data, onFileClick }: Props) {
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
 
-  // Build color map: layerId → color
   const layerColorMap = useMemo(() => {
     const m: Record<string, string> = {}
     data.layers.forEach((l, i) => { m[l.id] = BRAND_COLORS[i % BRAND_COLORS.length] })
@@ -83,32 +113,30 @@ export default function InteractiveFilesMap({ data, onFileClick }: Props) {
     return m
   }, [data.layers])
 
-  // Build set of files that connect to/from selected
+  const fileIndex = useMemo(() => buildFileIndex(data.fileGraph ?? []), [data.fileGraph])
+
   const connectedFiles = useMemo(() => {
     if (!selectedFile) return new Set<string>()
     const s = new Set([selectedFile])
-    const node = data.fileGraph.find((f) => f.file === selectedFile)
-    node?.imports.forEach((i) => s.add(i))
-    data.fileGraph.forEach((f) => { if (f.imports.includes(selectedFile)) s.add(f.file) })
+    const node = (data.fileGraph ?? []).find((f) => f.file === selectedFile)
+    node?.imports.forEach((imp) => {
+      const resolved = resolveImport(imp, fileIndex)
+      if (resolved) s.add(resolved)
+    })
+    ;(data.fileGraph ?? []).forEach((f) => {
+      f.imports.forEach((imp) => {
+        const resolved = resolveImport(imp, fileIndex)
+        if (resolved === selectedFile) s.add(f.file)
+      })
+    })
     return s
-  }, [selectedFile, data.fileGraph])
+  }, [selectedFile, data.fileGraph, fileIndex])
 
-  const handleNodeClick = (file: string, layerName: string) => {
-    if (selectedFile === file) {
-      setSelectedFile(null)
-    } else {
-      setSelectedFile(file)
-    }
+  const handleNodeClick = (file: string) => {
+    setSelectedFile((prev) => prev === file ? null : file)
   }
 
-  const handleAskClick = () => {
-    if (!selectedFile) return
-    const layer = data.fileGraph.find((f) => f.file === selectedFile)
-    const layerName = layer ? (layerNameMap[layer.layerId] ?? "") : ""
-    onFileClick(`What does \`${selectedFile}\` do? (it's in the ${layerName} layer)`)
-  }
-
-  const rawNodes: Node[] = data.fileGraph.map((f) => ({
+  const rawNodes: Node[] = (data.fileGraph ?? []).map((f) => ({
     id: f.file,
     type: "fileNode",
     position: { x: 0, y: 0 },
@@ -123,20 +151,27 @@ export default function InteractiveFilesMap({ data, onFileClick }: Props) {
   }))
 
   const rawEdges: Edge[] = []
-  data.fileGraph.forEach((f) => {
+  ;(data.fileGraph ?? []).forEach((f) => {
     f.imports.forEach((imp) => {
-      // Only draw edge if target exists in fileGraph
-      if (!data.fileGraph.find((g) => g.file === imp)) return
-      const isActive = selectedFile ? connectedFiles.has(f.file) && connectedFiles.has(imp) : false
+      const target = resolveImport(imp, fileIndex)
+      if (!target || target === f.file) return
+      const isActive = selectedFile ? connectedFiles.has(f.file) && connectedFiles.has(target) : false
       const color = layerColorMap[f.layerId] ?? "#374151"
+      const edgeId = `${target}→${f.file}`
+      // deduplicate
+      if (rawEdges.find((e) => e.id === edgeId)) return
       rawEdges.push({
-        id: `${f.file}→${imp}`,
-        source: imp,
+        id: edgeId,
+        source: target,
         target: f.file,
         type: "smoothstep",
         animated: isActive,
-        style: { stroke: isActive ? color : "#1f2937", strokeWidth: isActive ? 2 : 1, opacity: selectedFile && !isActive ? 0.1 : 0.6 },
-        markerEnd: { type: MarkerType.ArrowClosed, color: isActive ? color : "#374151" },
+        style: {
+          stroke: isActive ? color : "#d1d5db",
+          strokeWidth: isActive ? 2.5 : 1,
+          opacity: selectedFile && !isActive ? 0.15 : 1,
+        },
+        markerEnd: { type: MarkerType.ArrowClosed, color: isActive ? color : "#9ca3af" },
       })
     })
   })
@@ -150,7 +185,13 @@ export default function InteractiveFilesMap({ data, onFileClick }: Props) {
   const [nodes, , onNodesChange] = useNodesState(layoutedNodes)
   const [edges, , onEdgesChange] = useEdgesState(layoutedEdges)
 
-  const selectedInfo = selectedFile ? data.fileGraph.find((f) => f.file === selectedFile) : null
+  const selectedInfo = selectedFile ? (data.fileGraph ?? []).find((f) => f.file === selectedFile) : null
+
+  const importedBy = selectedFile
+    ? (data.fileGraph ?? []).filter((f) =>
+        f.imports.some((imp) => resolveImport(imp, fileIndex) === selectedFile)
+      )
+    : []
 
   return (
     <div className="relative w-full h-full">
@@ -159,72 +200,91 @@ export default function InteractiveFilesMap({ data, onFileClick }: Props) {
         onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         fitView fitViewOptions={{ padding: 0.15 }}
-        minZoom={0.15} maxZoom={3}
+        minZoom={0.1} maxZoom={3}
+        nodesDraggable={false}
         onPaneClick={() => setSelectedFile(null)}
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="#0a0f1a" gap={20} />
-        <Controls className="!bg-gray-900 !border-gray-700" />
+        <Background color="#e5e7eb" gap={20} style={{ background: "#ffffff" }} />
+        <Controls />
         <MiniMap
-          nodeColor={(n) => (n.data as FileNodeData)?.color ?? "#374151"}
-          maskColor="#00000099"
-          className="!bg-gray-950 !border-gray-800"
+          nodeColor={(n) => (n.data as FileNodeData)?.color ?? "#d1d5db"}
+          maskColor="#ffffff88"
+          className="!border-gray-200"
         />
       </ReactFlow>
 
-      {/* Legend: layer colors */}
-      <div className="absolute top-4 left-4 bg-gray-950/90 border border-gray-800 rounded-lg px-3 py-2 space-y-1.5 pointer-events-none">
+      {/* Layer legend */}
+      <div className="absolute top-3 left-3 bg-white/90 border border-gray-200 rounded-xl px-3 py-2 space-y-1.5 pointer-events-none shadow-sm">
         {data.layers.map((l, i) => (
           <div key={l.id} className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full" style={{ background: BRAND_COLORS[i % BRAND_COLORS.length] }} />
-            <span className="text-xs text-gray-400">{l.name}</span>
+            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: BRAND_COLORS[i % BRAND_COLORS.length] }} />
+            <span className="text-xs text-gray-600 font-medium">{l.name}</span>
           </div>
         ))}
       </div>
 
       {/* File detail panel */}
       {selectedInfo && (
-        <div className="absolute top-0 right-0 h-full w-64 bg-gray-950 border-l border-gray-800 z-10 overflow-y-auto flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800"
-            style={{ borderLeftColor: layerColorMap[selectedInfo.layerId] ?? "#6b7280", borderLeftWidth: 3 }}>
-            <div>
-              <p className="text-white font-mono text-sm font-semibold truncate">{selectedFile!.split("/").pop()}</p>
-              <p className="text-xs mt-0.5" style={{ color: layerColorMap[selectedInfo.layerId] ?? "#6b7280" }}>
+        <div className="absolute top-0 right-0 h-full w-64 bg-white border-l border-gray-200 z-10 overflow-y-auto flex flex-col shadow-xl">
+          <div
+            className="flex items-center justify-between px-4 py-3 border-b border-gray-200"
+            style={{ borderLeftColor: layerColorMap[selectedInfo.layerId] ?? "#6b7280", borderLeftWidth: 3 }}
+          >
+            <div className="overflow-hidden">
+              <p className="text-gray-900 font-mono text-sm font-semibold truncate">{selectedFile!.split("/").pop()}</p>
+              <p className="text-xs mt-0.5 font-medium" style={{ color: layerColorMap[selectedInfo.layerId] ?? "#6b7280" }}>
                 {layerNameMap[selectedInfo.layerId]}
               </p>
             </div>
-            <button onClick={() => setSelectedFile(null)} className="text-gray-600 hover:text-white text-xl">×</button>
+            <button onClick={() => setSelectedFile(null)} className="text-gray-400 hover:text-gray-900 text-xl ml-2">×</button>
           </div>
+
           <div className="p-4 space-y-3 flex-1">
-            <p className="text-xs font-mono text-gray-500 break-all">{selectedFile}</p>
+            <p className="text-xs font-mono text-gray-400 break-all">{selectedFile}</p>
+
             {selectedInfo.externalImports.length > 0 && (
               <div>
-                <p className="text-xs text-gray-600 uppercase font-semibold mb-1.5">Packages used</p>
+                <p className="text-xs text-gray-400 uppercase font-semibold mb-1.5">Packages</p>
                 <div className="flex flex-wrap gap-1">
                   {selectedInfo.externalImports.map((p) => (
-                    <span key={p} className="text-xs px-1.5 py-0.5 rounded font-mono text-white" style={{ background: "#00800033", border: "1px solid #00800055" }}>{p}</span>
+                    <span key={p} className="text-xs px-1.5 py-0.5 rounded font-mono text-white"
+                      style={{ background: "#00800099" }}>{p}</span>
                   ))}
                 </div>
               </div>
             )}
+
             {selectedInfo.imports.length > 0 && (
               <div>
-                <p className="text-xs text-gray-600 uppercase font-semibold mb-1.5">Imports from</p>
+                <p className="text-xs text-gray-400 uppercase font-semibold mb-1.5">Imports ({selectedInfo.imports.length})</p>
                 <div className="space-y-1">
-                  {selectedInfo.imports.map((f) => (
-                    <div key={f} onClick={() => setSelectedFile(f)} className="text-xs font-mono text-gray-400 hover:text-white cursor-pointer px-2 py-1 rounded bg-gray-800/60 hover:bg-gray-700/60 truncate">
-                      {f.split("/").pop()}
-                    </div>
-                  ))}
+                  {selectedInfo.imports.map((imp) => {
+                    const resolved = resolveImport(imp, fileIndex)
+                    return (
+                      <div
+                        key={imp}
+                        onClick={() => resolved && setSelectedFile(resolved)}
+                        className={`text-xs font-mono px-2 py-1 rounded bg-gray-100 truncate ${resolved ? "cursor-pointer hover:bg-gray-200 text-gray-700" : "text-gray-400"}`}
+                      >
+                        {(resolved ?? imp).split("/").pop()}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
-            {data.fileGraph.filter((f) => f.imports.includes(selectedFile!)).length > 0 && (
+
+            {importedBy.length > 0 && (
               <div>
-                <p className="text-xs text-gray-600 uppercase font-semibold mb-1.5">Imported by</p>
+                <p className="text-xs text-gray-400 uppercase font-semibold mb-1.5">Used by ({importedBy.length})</p>
                 <div className="space-y-1">
-                  {data.fileGraph.filter((f) => f.imports.includes(selectedFile!)).map((f) => (
-                    <div key={f.file} onClick={() => setSelectedFile(f.file)} className="text-xs font-mono text-gray-400 hover:text-white cursor-pointer px-2 py-1 rounded bg-gray-800/60 hover:bg-gray-700/60 truncate">
+                  {importedBy.map((f) => (
+                    <div
+                      key={f.file}
+                      onClick={() => setSelectedFile(f.file)}
+                      className="text-xs font-mono px-2 py-1 rounded bg-gray-100 text-gray-700 truncate cursor-pointer hover:bg-gray-200"
+                    >
                       {f.file.split("/").pop()}
                     </div>
                   ))}
@@ -232,10 +292,11 @@ export default function InteractiveFilesMap({ data, onFileClick }: Props) {
               </div>
             )}
           </div>
-          <div className="p-4 border-t border-gray-800">
+
+          <div className="p-4 border-t border-gray-200">
             <button
-              onClick={handleAskClick}
-              className="w-full py-2 rounded-lg text-sm font-medium text-white transition-colors"
+              onClick={() => onFileClick(`What does \`${selectedFile}\` do? (it's in the ${layerNameMap[selectedInfo.layerId]} layer)`)}
+              className="w-full py-2 rounded-lg text-sm font-bold text-white transition-opacity hover:opacity-90"
               style={{ background: layerColorMap[selectedInfo.layerId] ?? "#374151" }}
             >
               Ask about this file →
@@ -244,8 +305,17 @@ export default function InteractiveFilesMap({ data, onFileClick }: Props) {
         </div>
       )}
 
-      <div className="absolute bottom-4 right-4 bg-gray-950/90 border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-gray-700 pointer-events-none">
-        Click a file to see connections • Click again to ask in chat
+      {(data.fileGraph ?? []).length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="bg-white border border-gray-200 rounded-xl px-6 py-4 text-center shadow-sm">
+            <p className="text-gray-500 text-sm">Re-run analysis to generate the file graph.</p>
+            <p className="text-gray-400 text-xs mt-1">Hit the Refresh button above.</p>
+          </div>
+        </div>
+      )}
+
+      <div className="absolute bottom-3 right-3 bg-white/90 border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-400 pointer-events-none shadow-sm">
+        Click a file to see connections
       </div>
     </div>
   )

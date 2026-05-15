@@ -91,23 +91,24 @@ export default function ChatSidebar({ repoName, prefillMessage, onPrefillConsume
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-950 border-l border-gray-800">
+    <div className="flex flex-col h-full bg-white border-l border-gray-200">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-800">
-        <p className="text-white font-semibold text-sm">Codebase Chat</p>
-        <p className="text-gray-500 text-xs mt-0.5">Ask anything about your code</p>
+      <div className="px-4 py-3 border-b border-gray-200" style={{ borderTopColor: "#ff0000", borderTopWidth: 3 }}>
+        <p className="text-gray-900 font-bold text-sm">Codebase Chat</p>
+        <p className="text-gray-400 text-xs mt-0.5">Ask anything about your code</p>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0 bg-gray-50">
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
               className={`max-w-[85%] rounded-xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap ${
                 msg.role === "user"
-                  ? "bg-blue-600 text-white rounded-br-sm"
-                  : "bg-gray-800 text-gray-200 rounded-bl-sm"
+                  ? "text-white rounded-br-sm"
+                  : "bg-white text-gray-800 rounded-bl-sm border border-gray-200 shadow-sm"
               }`}
+              style={msg.role === "user" ? { background: "#ff0000" } : {}}
             >
               {msg.content}
               {streaming && i === messages.length - 1 && msg.role === "assistant" && (
@@ -120,13 +121,13 @@ export default function ChatSidebar({ repoName, prefillMessage, onPrefillConsume
       </div>
 
       {/* Quick ask chips */}
-      <div className="px-4 py-2 flex flex-wrap gap-1.5 border-t border-gray-800">
+      <div className="px-4 py-2 flex flex-wrap gap-1.5 border-t border-gray-200 bg-white">
         {QUICK_ASKS.map((q) => (
           <button
             key={q}
             onClick={() => sendMessage(q)}
             disabled={streaming}
-            className="text-xs px-2.5 py-1 rounded-full bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200 transition-colors disabled:opacity-40"
+            className="text-xs px-2.5 py-1 rounded-full border border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors disabled:opacity-40 bg-white"
           >
             {q}
           </button>
@@ -135,23 +136,22 @@ export default function ChatSidebar({ repoName, prefillMessage, onPrefillConsume
 
       {/* Input */}
       <form
-        className="px-4 py-3 border-t border-gray-800 flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault()
-          sendMessage(input)
-        }}
+        className="px-4 py-3 border-t border-gray-200 flex gap-2 bg-white"
+        onSubmit={(e) => { e.preventDefault(); sendMessage(input) }}
       >
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask about your codebase…"
           disabled={streaming}
-          className="flex-1 bg-gray-800 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder-gray-600 focus:ring-1 focus:ring-gray-600 disabled:opacity-50"
+          className="flex-1 bg-gray-50 text-gray-900 text-sm rounded-lg px-3 py-2 outline-none border border-gray-200 placeholder-gray-400 focus:ring-2 focus:border-transparent disabled:opacity-50"
+          style={{ ["--tw-ring-color" as string]: "#ff0000" }}
         />
         <button
           type="submit"
           disabled={!input.trim() || streaming}
-          className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors disabled:opacity-40"
+          className="px-3 py-2 rounded-lg text-white text-sm font-bold transition-opacity hover:opacity-90 disabled:opacity-40"
+          style={{ background: "#ff0000" }}
         >
           Send
         </button>

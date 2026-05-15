@@ -19,7 +19,7 @@ const CAT: Record<Bug["category"], string> = {
 function BugCard({ bug }: { bug: Bug }) {
   const sev = SEV[bug.severity]
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900 p-4 space-y-3">
+    <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3 shadow-sm">
       <div className="flex items-center gap-2 flex-wrap">
         <span
           className="text-xs px-2.5 py-0.5 rounded-full font-bold border"
@@ -34,8 +34,8 @@ function BugCard({ bug }: { bug: Bug }) {
       </div>
 
       <div>
-        <h3 className="text-white font-semibold text-sm mb-1">{bug.title}</h3>
-        <p className="text-gray-400 text-sm leading-relaxed">{bug.description}</p>
+        <h3 className="text-gray-900 font-semibold text-sm mb-1">{bug.title}</h3>
+        <p className="text-gray-600 text-sm leading-relaxed">{bug.description}</p>
       </div>
 
       <div
