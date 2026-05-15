@@ -78,8 +78,13 @@ ${FRAMEWORK_RUBRIC}`,
 
 You will receive a Page Profile (extracted from the user's page) and the page sentences. For each sentence, score it. Then produce findings: high-impact issues that, if fixed, would meaningfully improve conversion for THIS specific audience.
 
+JSON output rules (critical — violations break parsing):
+- Output ONLY raw JSON. No markdown, no code fences, no prose before or after.
+- Every string value must use valid JSON escaping: double quotes inside strings → \", backslashes → \\, newlines → \n.
+- Never embed a literal unescaped " character inside a JSON string value.
+
 Hard rules for grounding:
-- Quote the user's actual sentence verbatim in every finding.
+- Quote the user's actual sentence verbatim in every finding (with special characters properly JSON-escaped).
 - "why_it_fails_for_this_audience" must reference at least one of: PageContext.industry, PageContext.icp, PageContext.product_name, PageContext.terminology.
 - "rewrite_suggestion" must use the page's product name AND at least one piece of its terminology. Never use generic CTA phrases.
 - If a sentence is fine, mark it "ok" and skip it from findings.
