@@ -10,9 +10,7 @@ export default function RefreshButton() {
   async function handleRefresh() {
     setLoading(true)
     try {
-      await fetch("/api/analyze", {
-        headers: { "x-codemap-secret": "" },
-      })
+      await fetch("/api/refresh", { method: "POST" })
       router.refresh()
     } finally {
       setLoading(false)

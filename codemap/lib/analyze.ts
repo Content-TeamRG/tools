@@ -4,7 +4,7 @@ import { promises as fs } from "fs"
 import path from "path"
 import type { RepoSnapshot, ArchitectureMap } from "./types"
 
-const DATA_PATH = path.join(process.cwd(), "data", "latest-analysis.json")
+const DATA_PATH = process.env.DATA_PATH || path.join("/tmp", "codemap-latest-analysis.json")
 
 async function analyzeRepoUncached(snapshot: RepoSnapshot): Promise<ArchitectureMap> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })

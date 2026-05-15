@@ -15,9 +15,15 @@ function shouldFetchFile(path: string): boolean {
 }
 
 async function fetchRepoSnapshotUncached(): Promise<RepoSnapshot> {
-  const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN })
-  const owner = process.env.GITHUB_OWNER!
-  const repo = process.env.GITHUB_REPO!
+  const token = process.env.GITHUB_TOKEN
+  const owner = process.env.GITHUB_OWNER
+  const repo = process.env.GITHUB_REPO
+
+  if (!token) throw new Error("GITHUB_TOKEN env var is not set")
+  if (!owner) throw new Error("GITHUB_OWNER env var is not set")
+  if (!repo) throw new Error("GITHUB_REPO env var is not set")
+
+  const octokit = new Octokit({ auth: token })
 
   const treeResponse = await octokit.git.getTree({
     owner,
