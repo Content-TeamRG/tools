@@ -116,58 +116,50 @@ export async function callSwot(
 }
 
 // Extract and parse the first complete JSON object from a model response.
-// Handles: code-fenced JSON, prose preceding the JSON, prose / citations
-// following the JSON, and strings containing { or } characters.
+// The model occasionally emits unescaped quotes or literal newlines inside
+// string values, which confuses both the depth-walker and JSON.parse.
+// Strategy: try candidates in order, return the first that parses cleanly.
 export function parseJson<T>(s: string): T {
-  let text = s
+  const stripped = s
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/i, "");
 
-  const start = text.indexOf("{");
+  const start = stripped.indexOf("{");
   if (start === -1) {
-    return JSON.parse(text) as T;
+    // No object found — try repair on the raw string
+    return JSON.parse(jsonrepair(stripped)) as T;
   }
 
+  // Walk to find the matching closing brace (may be wrong if quotes are unescaped)
   let depth = 0;
   let inString = false;
   let escape = false;
   let end = -1;
 
-  for (let i = start; i < text.length; i++) {
-    const ch = text[i];
-    if (escape) {
-      escape = false;
-      continue;
-    }
-    if (ch === "\\" && inString) {
-      escape = true;
-      continue;
-    }
-    if (ch === '"') {
-      inString = !inString;
-      continue;
-    }
+  for (let i = start; i < stripped.length; i++) {
+    const ch = stripped[i];
+    if (escape) { escape = false; continue; }
+    if (ch === "\\" && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
     if (inString) continue;
     if (ch === "{") depth++;
-    else if (ch === "}") {
-      depth--;
-      if (depth === 0) {
-        end = i;
-        break;
-      }
-    }
+    else if (ch === "}") { depth--; if (depth === 0) { end = i; break; } }
   }
 
-  if (end !== -1) {
-    text = text.slice(start, end + 1);
-  } else {
-    text = text.slice(start);
+  const walkerSlice = end !== -1
+    ? stripped.slice(start, end + 1)
+    : stripped.slice(start);
+  const fullFromStart = stripped.slice(start);
+
+  // Try four candidates in order of preference
+  const candidates = [walkerSlice, fullFromStart];
+  for (const candidate of candidates) {
+    try { return JSON.parse(candidate) as T; } catch { /* next */ }
+    try { return JSON.parse(jsonrepair(candidate)) as T; } catch { /* next */ }
   }
 
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    return JSON.parse(jsonrepair(text)) as T;
-  }
+  throw new Error(
+    `Could not parse model response as JSON. First 200 chars: ${stripped.slice(0, 200)}`
+  );
 }
