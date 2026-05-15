@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { jsonrepair } from "jsonrepair";
 import type { SystemBlock } from "./prompts";
 
 const client = new Anthropic({
@@ -164,5 +165,9 @@ export function parseJson<T>(s: string): T {
     text = text.slice(start);
   }
 
-  return JSON.parse(text) as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return JSON.parse(jsonrepair(text)) as T;
+  }
 }
