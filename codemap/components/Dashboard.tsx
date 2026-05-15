@@ -1,12 +1,15 @@
 "use client"
 
 import { useState } from "react"
+import dynamic from "next/dynamic"
 import type { ArchitectureMap } from "@/lib/types"
-import ArchitectureMapComponent from "./ArchitectureMap"
 import BugTracker from "./BugTracker"
 import StatsPanel from "./StatsPanel"
 import ChatSidebar from "./ChatSidebar"
 import RefreshButton from "./RefreshButton"
+
+// React Flow must be client-only (no SSR)
+const InteractiveMap = dynamic(() => import("./InteractiveMap"), { ssr: false })
 
 type Props = {
   data: ArchitectureMap
@@ -21,14 +24,14 @@ export default function Dashboard({ data, repoName, branch }: Props) {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "map", label: "Map" },
-    { id: "bugs", label: `Bugs ${data.bugs.length > 0 ? `(${data.bugs.length})` : ""}` },
+    { id: "bugs", label: `Bugs${data.bugs.length > 0 ? ` (${data.bugs.length})` : ""}` },
     { id: "stats", label: "Stats" },
   ]
 
   return (
     <div className="flex h-screen bg-gray-950 overflow-hidden">
       {/* Left panel */}
-      <div className="flex flex-col flex-1 min-w-0" style={{ width: "70%" }}>
+      <div className="flex flex-col min-w-0" style={{ width: "70%" }}>
         {/* Header */}
         <header className="flex items-center gap-3 px-6 py-4 border-b border-gray-800 shrink-0">
           <span className="font-mono text-xl font-bold text-white tracking-tight">CodeMap</span>
@@ -49,9 +52,7 @@ export default function Dashboard({ data, repoName, branch }: Props) {
                   key={t.id}
                   onClick={() => setTab(t.id)}
                   className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                    tab === t.id
-                      ? "bg-gray-700 text-white"
-                      : "text-gray-500 hover:text-gray-300"
+                    tab === t.id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"
                   }`}
                 >
                   {t.label}
@@ -74,11 +75,21 @@ export default function Dashboard({ data, repoName, branch }: Props) {
         </div>
 
         {/* Tab content */}
-        <div className="flex-1 overflow-y-auto px-6 py-6">
-          {tab === "map" && <ArchitectureMapComponent data={data} />}
-          {tab === "bugs" && <BugTracker bugs={data.bugs} />}
-          {tab === "stats" && <StatsPanel stats={data.stats} />}
-        </div>
+        {tab === "map" && (
+          <div className="flex-1 min-h-0">
+            <InteractiveMap data={data} />
+          </div>
+        )}
+        {tab === "bugs" && (
+          <div className="flex-1 overflow-y-auto px-6 py-6">
+            <BugTracker bugs={data.bugs} />
+          </div>
+        )}
+        {tab === "stats" && (
+          <div className="flex-1 overflow-y-auto px-6 py-6">
+            <StatsPanel stats={data.stats} />
+          </div>
+        )}
       </div>
 
       {/* Right chat panel */}

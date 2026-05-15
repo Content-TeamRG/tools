@@ -2,15 +2,21 @@ import { Octokit } from "@octokit/rest"
 import { unstable_cache } from "next/cache"
 import type { RepoSnapshot } from "./types"
 
-const ALLOWED_EXTENSIONS = [".ts", ".tsx", "package.json", "tsconfig.json", ".env.example", "README.md"]
+const ALLOWED_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", "package.json", "tsconfig.json", ".env.example", "README.md"]
 const SKIP_DIRS = ["node_modules", ".next", "dist", ".git"]
 const MAX_FILE_SIZE = 100 * 1024 // 100KB
 
-function shouldFetchFile(path: string): boolean {
-  if (SKIP_DIRS.some((dir) => path.startsWith(dir + "/") || path === dir)) return false
+function shouldFetchFile(filePath: string, subdir: string): boolean {
+  // If a subdirectory filter is set, only include files under that path
+  if (subdir && !filePath.startsWith(subdir + "/")) return false
+
+  const relative = subdir ? filePath.slice(subdir.length + 1) : filePath
+
+  if (SKIP_DIRS.some((dir) => relative.startsWith(dir + "/") || relative === dir)) return false
+
   return ALLOWED_EXTENSIONS.some((ext) => {
-    if (ext.startsWith(".")) return path.endsWith(ext)
-    return path.endsWith("/" + ext) || path === ext
+    if (ext.startsWith(".")) return relative.endsWith(ext)
+    return relative.endsWith("/" + ext) || relative === ext
   })
 }
 
@@ -18,6 +24,7 @@ async function fetchRepoSnapshotUncached(): Promise<RepoSnapshot> {
   const token = process.env.GITHUB_TOKEN
   const owner = process.env.GITHUB_OWNER
   const repo = process.env.GITHUB_REPO
+  const subdir = (process.env.GITHUB_PATH ?? "").replace(/\/$/, "") // e.g. "croanalyzer"
 
   if (!token) throw new Error("GITHUB_TOKEN env var is not set")
   if (!owner) throw new Error("GITHUB_OWNER env var is not set")
@@ -36,7 +43,7 @@ async function fetchRepoSnapshotUncached(): Promise<RepoSnapshot> {
     (item) =>
       item.type === "blob" &&
       item.path &&
-      shouldFetchFile(item.path) &&
+      shouldFetchFile(item.path, subdir) &&
       (item.size ?? 0) <= MAX_FILE_SIZE
   )
 
@@ -52,8 +59,10 @@ async function fetchRepoSnapshotUncached(): Promise<RepoSnapshot> {
         const content = data.encoding === "base64" && data.content
           ? Buffer.from(data.content, "base64").toString("utf-8")
           : ""
+        // Strip the subdir prefix from paths so the AI sees clean relative paths
+        const cleanPath = subdir ? item.path!.slice(subdir.length + 1) : item.path!
         return {
-          path: item.path!,
+          path: cleanPath,
           content,
           size: item.size ?? 0,
         }
@@ -84,7 +93,7 @@ export const fetchRepoSnapshot = unstable_cache(
   fetchRepoSnapshotUncached,
   ["repo-snapshot"],
   {
-    revalidate: 300, // 5 minutes
+    revalidate: 300,
     tags: ["repo-snapshot"],
   }
 )
