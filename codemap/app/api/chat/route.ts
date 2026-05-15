@@ -25,7 +25,9 @@ Rules:
 - If asked about bugs, explain them simply and always suggest the fix
 - Never say "as an AI" or "I don't have access to" — you have the architecture data above`
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY env var is not set")
+  const client = new Anthropic({ apiKey })
 
   const messages: Anthropic.MessageParam[] = [
     ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),

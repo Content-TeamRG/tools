@@ -7,7 +7,9 @@ import type { RepoSnapshot, ArchitectureMap } from "./types"
 const DATA_PATH = process.env.DATA_PATH || path.join("/tmp", "codemap-latest-analysis.json")
 
 async function analyzeRepoUncached(snapshot: RepoSnapshot): Promise<ArchitectureMap> {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY env var is not set")
+  const client = new Anthropic({ apiKey })
 
   const filesSummary = snapshot.files
     .map((f) => `### ${f.path}\n${f.content.slice(0, 3000)}`)
