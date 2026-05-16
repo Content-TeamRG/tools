@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Finding, SentenceScore, RewriteChange } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +29,10 @@ function paraContains(para: string, fragment: string): boolean {
   const f = normalize(fragment).toLowerCase();
   if (f.length < 12) return false;
   return p.includes(f) || f.includes(p);
+}
+
+function wordCount(text: string) {
+  return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
 function annotateOriginal(
@@ -115,7 +119,6 @@ function Paragraph({
           className={cn(
             "mt-1.5 z-50 rounded-lg px-3 py-2 text-[11px] text-white leading-relaxed shadow-lg",
             tooltipBg,
-            side === "right" ? "ml-0" : "ml-0",
           )}
         >
           {para.tooltip}
@@ -134,6 +137,10 @@ export function RewriteDiffView({
 }: Props) {
   const [hoveredLeft, setHoveredLeft] = useState<number | null>(null);
   const [hoveredRight, setHoveredRight] = useState<number | null>(null);
+  const [syncScroll, setSyncScroll] = useState(true);
+  const leftRef = useRef<HTMLDivElement>(null);
+  const rightRef = useRef<HTMLDivElement>(null);
+  const isSyncingRef = useRef(false);
 
   const origParas = originalText
     .split(/\n+/)
@@ -149,48 +156,80 @@ export function RewriteDiffView({
 
   const leftHighlighted = annotatedOrig.filter((p) => p.kind !== null).length;
   const rightHighlighted = annotatedRewrite.filter((p) => p.kind !== null).length;
+  const origWords = wordCount(originalText);
+  const rewriteWords = wordCount(rewrittenText);
+
+  function handleLeftScroll(e: React.UIEvent<HTMLDivElement>) {
+    if (!syncScroll || isSyncingRef.current) return;
+    isSyncingRef.current = true;
+    if (rightRef.current) rightRef.current.scrollTop = (e.target as HTMLDivElement).scrollTop;
+    isSyncingRef.current = false;
+  }
+
+  function handleRightScroll(e: React.UIEvent<HTMLDivElement>) {
+    if (!syncScroll || isSyncingRef.current) return;
+    isSyncingRef.current = true;
+    if (leftRef.current) leftRef.current.scrollTop = (e.target as HTMLDivElement).scrollTop;
+    isSyncingRef.current = false;
+  }
 
   return (
-    <div className="space-y-3">
-      {/* Legend */}
-      <div className="flex flex-wrap gap-4 text-xs text-gray-500">
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-red-200 inline-block" />
-          CRO finding
+    <div className="flex flex-col">
+      {/* Sticky column header bar */}
+      <div className="sticky top-14 z-20 grid grid-cols-2 border border-gray-200 rounded-t-2xl overflow-hidden bg-white shadow-sm">
+        {/* Left header */}
+        <div className="flex items-center justify-between px-5 py-3 bg-red-50 border-r border-gray-200">
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-red-700">
+              Before
+            </span>
+            <span className="text-[11px] text-gray-500">
+              {leftHighlighted} issue{leftHighlighted !== 1 ? "s" : ""} flagged
+            </span>
+          </div>
+          <span className="text-[11px] text-gray-400 tabular-nums">{origWords} words</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-amber-100 inline-block" />
-          Weak / mid sentence
+
+        {/* Right header */}
+        <div className="flex items-center justify-between px-5 py-3 bg-emerald-50">
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-700">
+              After
+            </span>
+            <span className="text-[11px] text-gray-500">
+              {rightHighlighted} section{rightHighlighted !== 1 ? "s" : ""} rewritten
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] text-gray-400 tabular-nums">{rewriteWords} words</span>
+            {/* Sync scroll toggle */}
+            <button
+              onClick={() => setSyncScroll((v) => !v)}
+              className={cn(
+                "flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium border transition-colors",
+                syncScroll
+                  ? "bg-violet-50 border-violet-200 text-violet-700"
+                  : "bg-white border-gray-200 text-gray-500 hover:border-gray-300",
+              )}
+            >
+              <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M4 2h8a1 1 0 011 1v3h-1V3H4v2H3V3a1 1 0 011-1zM3 11v2a1 1 0 001 1h8a1 1 0 001-1v-2h-1v2H4v-2H3z"/>
+                <path fillRule="evenodd" d="M0 8a1 1 0 011-1h14a1 1 0 010 2H1a1 1 0 01-1-1z"/>
+              </svg>
+              Sync scroll
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-emerald-100 inline-block" />
-          Rewritten
-        </div>
-        <span className="text-gray-400">· hover any highlighted section to see reasoning</span>
       </div>
 
-      {/* Split panels */}
-      <div className="grid grid-cols-2 border border-gray-200 rounded-2xl">
-        {/* Column headers */}
-        <div className="flex items-center gap-2 px-5 py-3 border-b border-r border-gray-200 rounded-tl-2xl bg-red-50">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-red-700">
-            Before
-          </span>
-          <span className="text-[11px] text-gray-400">
-            {leftHighlighted} issue{leftHighlighted !== 1 ? "s" : ""} flagged
-          </span>
-        </div>
-        <div className="flex items-center gap-2 px-5 py-3 border-b border-gray-200 rounded-tr-2xl bg-emerald-50">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
-            After
-          </span>
-          <span className="text-[11px] text-gray-400">
-            {rightHighlighted} section{rightHighlighted !== 1 ? "s" : ""} rewritten
-          </span>
-        </div>
-
+      {/* Side-by-side panels */}
+      <div className="grid grid-cols-2 border-x border-b border-gray-200 rounded-b-2xl overflow-hidden">
         {/* Left panel */}
-        <div className="border-r border-gray-200 p-5 space-y-2 overflow-y-auto max-h-[68vh]">
+        <div
+          ref={leftRef}
+          onScroll={handleLeftScroll}
+          className="border-r border-gray-200 p-5 space-y-2 overflow-y-auto h-[calc(100vh-8rem)]"
+        >
           {annotatedOrig.map((para, i) => (
             <Paragraph
               key={i}
@@ -205,7 +244,11 @@ export function RewriteDiffView({
         </div>
 
         {/* Right panel */}
-        <div className="p-5 space-y-2 overflow-y-auto max-h-[68vh]">
+        <div
+          ref={rightRef}
+          onScroll={handleRightScroll}
+          className="p-5 space-y-2 overflow-y-auto h-[calc(100vh-8rem)]"
+        >
           {annotatedRewrite.map((para, i) => (
             <Paragraph
               key={i}
@@ -218,6 +261,23 @@ export function RewriteDiffView({
             />
           ))}
         </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-4 text-xs text-gray-500 pt-3 px-1">
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm bg-red-200 inline-block" />
+          CRO finding
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm bg-amber-100 inline-block" />
+          Weak / mid sentence
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm bg-emerald-100 inline-block" />
+          Rewritten
+        </div>
+        <span className="text-gray-400">· hover any highlighted section to see reasoning</span>
       </div>
     </div>
   );
