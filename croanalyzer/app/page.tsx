@@ -77,23 +77,19 @@ export default function HomePage() {
     setPendingSerp(null);
   }
 
-  const hasSessions = sessions.length > 0;
-
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col">
       <NavBar
-        onLogoClick={hasSessions ? handleNewAnalysis : undefined}
-        onNewAnalysis={hasSessions ? handleNewAnalysis : undefined}
+        onLogoClick={handleNewAnalysis}
+        onNewAnalysis={handleNewAnalysis}
       />
 
       <div className="flex flex-1 min-h-0">
-        {hasSessions && (
-          <SessionSidebar
-            sessions={sessions}
-            activeId={activeId}
-            onSelect={setActiveId}
-          />
-        )}
+        <SessionSidebar
+          sessions={sessions}
+          activeId={activeId}
+          onSelect={setActiveId}
+        />
 
         <div className="flex-1 min-w-0 overflow-y-auto">
           {activeSession ? (
@@ -108,7 +104,7 @@ export default function HomePage() {
               onSubmit={handleSubmit}
               isLoading={isLoading}
               error={error}
-              compact={hasSessions}
+              compact={true}
             />
           )}
         </div>
