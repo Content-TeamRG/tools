@@ -7,15 +7,14 @@ import {
   Copy,
   Check,
   Download,
-  ChevronDown,
-  ChevronUp,
   ArrowRight,
   Sparkles,
   Search,
   Target,
 } from "lucide-react";
-import type { RewriteMode, RewriteResult } from "@/lib/types";
+import type { Finding, RewriteMode, RewriteResult, SentenceScore } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { RewriteDiffView } from "./RewriteDiffView";
 
 interface RewriteTabProps {
   result: RewriteResult | null;
@@ -25,6 +24,9 @@ interface RewriteTabProps {
   weakCount: number;
   hasSerp: boolean;
   serpThemesCount: number;
+  originalText: string;
+  findings: Finding[];
+  sentenceScores: SentenceScore[];
   onGenerate: (mode: RewriteMode) => void;
   onSwitchToSerp: () => void;
 }
@@ -66,12 +68,14 @@ export function RewriteTab({
   weakCount,
   hasSerp,
   serpThemesCount,
+  originalText,
+  findings,
+  sentenceScores,
   onGenerate,
   onSwitchToSerp,
 }: RewriteTabProps) {
   const [mode, setMode] = useState<RewriteMode>("mistakes");
   const [copied, setCopied] = useState(false);
-  const [showLog, setShowLog] = useState(true);
 
   const modeNeedsSerp = mode === "serp" || mode === "both";
   const blocked = modeNeedsSerp && !hasSerp;
@@ -189,9 +193,7 @@ export function RewriteTab({
               <div className="text-xl font-bold text-gray-900 tabular-nums">
                 {findingsCount}
               </div>
-              <div className="text-[11px] text-gray-500 mt-0.5">
-                Findings
-              </div>
+              <div className="text-[11px] text-gray-500 mt-0.5">Findings</div>
             </div>
             <div>
               <div className="text-xl font-bold text-gray-900 tabular-nums">
@@ -220,8 +222,8 @@ export function RewriteTab({
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
               <p className="text-sm text-amber-800 leading-relaxed mb-3">
                 <strong>{selectedMode.label}</strong> needs the SERP analysis
-                to be run first — that's where the differentiation themes come
-                from.
+                to be run first — that&apos;s where the differentiation themes
+                come from.
               </p>
               <button
                 onClick={onSwitchToSerp}
@@ -245,7 +247,7 @@ export function RewriteTab({
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Generating rewrite…
+                  Generating rewrite&hellip;
                 </>
               ) : (
                 <>
@@ -267,16 +269,13 @@ export function RewriteTab({
     );
   }
 
-  // Result view
+  // Result view — split diff
   const usedMode = MODES.find((m) => m.id === result.mode_used)!;
   const UsedIcon = usedMode.icon;
-  const paragraphs = result.rewritten_text
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-violet-50 border border-violet-200">
@@ -289,12 +288,12 @@ export function RewriteTab({
             <span className="font-semibold text-gray-900">
               {result.applied_findings_count}
             </span>{" "}
-            fixes applied ·{" "}
+            fixes applied &middot;{" "}
             <span className="tabular-nums">
-              {result.meta.original_word_count} →{" "}
+              {result.meta.original_word_count} &rarr;{" "}
               {result.meta.rewritten_word_count}
             </span>{" "}
-            words ·{" "}
+            words &middot;{" "}
             <span className="tabular-nums">
               {(result.meta.duration_ms / 1000).toFixed(1)}s
             </span>
@@ -329,27 +328,29 @@ export function RewriteTab({
             ) : (
               <Wand2 className="w-3.5 h-3.5" />
             )}
-            Try {mode === result.mode_used ? "again" : MODES.find((m) => m.id === mode)?.label.toLowerCase()}
+            {mode === result.mode_used
+              ? "Try again"
+              : `Try ${MODES.find((m) => m.id === mode)?.label.toLowerCase()}`}
           </button>
         </div>
       </div>
 
-      {/* Mode picker remains visible above the result for switching */}
+      {/* Mode switcher */}
       <div className="flex gap-1 p-1 bg-gray-100 rounded-lg w-fit">
         {MODES.map((m) => {
           const requiresSerp = m.id === "serp" || m.id === "both";
-          const disabled = requiresSerp && !hasSerp;
+          const isDisabled = requiresSerp && !hasSerp;
           return (
             <button
               key={m.id}
               onClick={() => setMode(m.id)}
-              disabled={disabled}
+              disabled={isDisabled}
               className={cn(
                 "px-3 py-1 rounded text-xs font-medium transition-colors",
-                mode === m.id && !disabled
+                mode === m.id && !isDisabled
                   ? "bg-white text-gray-900 shadow-sm"
                   : "text-gray-500 hover:text-gray-900",
-                disabled && "opacity-40 cursor-not-allowed",
+                isDisabled && "opacity-40 cursor-not-allowed",
               )}
             >
               {m.label}
@@ -358,75 +359,14 @@ export function RewriteTab({
         })}
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-2xl p-8 sm:p-10 shadow-sm">
-        <div className="text-xs font-semibold uppercase tracking-wider text-violet-700 mb-6 flex items-center gap-2">
-          <Wand2 className="w-3 h-3" />
-          Rewritten page copy
-        </div>
-        <div className="space-y-4 text-[15px] leading-7 text-gray-800 max-w-prose">
-          {paragraphs.map((p, i) => (
-            <p key={i} className="whitespace-pre-wrap">
-              {p}
-            </p>
-          ))}
-        </div>
-      </div>
-
-      {result.change_log.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm">
-          <button
-            onClick={() => setShowLog((x) => !x)}
-            className="w-full flex items-center justify-between px-5 py-4 text-left"
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-gray-900">
-                Change log
-              </span>
-              <span className="text-xs text-gray-500">
-                ({result.change_log.length} substantive changes)
-              </span>
-            </div>
-            {showLog ? (
-              <ChevronUp className="w-4 h-4 text-gray-400" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-gray-400" />
-            )}
-          </button>
-          {showLog && (
-            <div className="border-t border-gray-100 px-5 pb-5 pt-4 space-y-4">
-              {result.change_log.map((c, i) => (
-                <div
-                  key={i}
-                  className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-3 items-start text-sm"
-                >
-                  <div className="bg-red-50 border border-red-100 rounded-lg p-3">
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-red-700 mb-1">
-                      Before
-                    </div>
-                    <p className="text-gray-700 italic leading-relaxed">
-                      “{c.before}”
-                    </p>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-gray-400 mx-auto mt-3 hidden sm:block" />
-                  <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3">
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 mb-1">
-                      After
-                    </div>
-                    <p className="text-gray-900 font-medium leading-relaxed">
-                      {c.after}
-                    </p>
-                    {c.reason && (
-                      <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
-                        {c.reason}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Split diff view */}
+      <RewriteDiffView
+        originalText={originalText}
+        rewrittenText={result.rewritten_text}
+        findings={findings}
+        sentenceScores={sentenceScores}
+        changeLog={result.change_log}
+      />
     </div>
   );
 }

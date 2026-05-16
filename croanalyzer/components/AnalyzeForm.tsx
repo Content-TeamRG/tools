@@ -9,16 +9,21 @@ import {
   Zap,
   ArrowRight,
   CheckCircle,
+  BarChart2,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Mode = "url" | "text";
+type InputMode = "url" | "text";
+type AnalysisType = "audit" | "serp";
 
 export interface AnalyzeFormSubmit {
-  mode: Mode;
+  mode: InputMode;
   url?: string;
   text?: string;
   title?: string;
+  analysisType: AnalysisType;
+  keyword?: string;
 }
 
 const FEATURES = [
@@ -39,24 +44,42 @@ export function AnalyzeForm({
   isLoading: boolean;
   error: string | null;
 }) {
-  const [mode, setMode] = useState<Mode>("url");
+  const [inputMode, setInputMode] = useState<InputMode>("url");
+  const [analysisType, setAnalysisType] = useState<AnalysisType>("audit");
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
+  const [keyword, setKeyword] = useState("");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (isLoading) return;
-    if (mode === "url") {
+    if (inputMode === "url") {
       if (!url.trim()) return;
-      onSubmit({ mode: "url", url: url.trim() });
+      onSubmit({
+        mode: "url",
+        url: url.trim(),
+        analysisType,
+        keyword: keyword.trim() || undefined,
+      });
     } else {
       if (!text.trim()) return;
-      onSubmit({ mode: "text", text: text.trim(), title: title.trim() });
+      onSubmit({
+        mode: "text",
+        text: text.trim(),
+        title: title.trim(),
+        analysisType,
+        keyword: keyword.trim() || undefined,
+      });
     }
   }
 
-  const disabled = isLoading || (mode === "url" ? !url.trim() : !text.trim());
+  const hasContent = inputMode === "url" ? !!url.trim() : !!text.trim();
+  const serpNeedsKeyword = analysisType === "serp" && !keyword.trim();
+  const disabled = isLoading || !hasContent || serpNeedsKeyword;
+
+  const ctaLabel =
+    analysisType === "serp" ? "Analyze & compare to SERP" : "Score my page";
 
   return (
     <div className="hero-backdrop">
@@ -93,13 +116,83 @@ export function AnalyzeForm({
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 max-w-2xl mx-auto shadow-xl shadow-gray-200/50">
+
+          {/* Analysis type selector */}
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
+            Choose analysis type
+          </p>
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <button
+              type="button"
+              onClick={() => setAnalysisType("audit")}
+              className={cn(
+                "flex flex-col gap-1.5 p-4 rounded-xl border text-left transition-all",
+                analysisType === "audit"
+                  ? "border-violet-500 bg-violet-50/60 shadow-sm"
+                  : "border-gray-200 hover:border-gray-300 hover:bg-gray-50",
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <BarChart2
+                  className={cn(
+                    "w-4 h-4",
+                    analysisType === "audit" ? "text-violet-600" : "text-gray-400",
+                  )}
+                />
+                <span
+                  className={cn(
+                    "text-sm font-semibold",
+                    analysisType === "audit" ? "text-violet-800" : "text-gray-700",
+                  )}
+                >
+                  Page audit
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Score your page against a 100-point CRO rubric and get rewrite suggestions.
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAnalysisType("serp")}
+              className={cn(
+                "flex flex-col gap-1.5 p-4 rounded-xl border text-left transition-all",
+                analysisType === "serp"
+                  ? "border-violet-500 bg-violet-50/60 shadow-sm"
+                  : "border-gray-200 hover:border-gray-300 hover:bg-gray-50",
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <TrendingUp
+                  className={cn(
+                    "w-4 h-4",
+                    analysisType === "serp" ? "text-violet-600" : "text-gray-400",
+                  )}
+                />
+                <span
+                  className={cn(
+                    "text-sm font-semibold",
+                    analysisType === "serp" ? "text-violet-800" : "text-gray-700",
+                  )}
+                >
+                  SERP comparison
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Compare your page against top-ranking competitors for a keyword to find conversion gaps.
+              </p>
+            </button>
+          </div>
+
+          {/* Input mode toggle (URL vs paste text) */}
           <div className="flex gap-1 p-1 bg-gray-100 rounded-lg mb-6 w-fit">
             <button
               type="button"
-              onClick={() => setMode("url")}
+              onClick={() => setInputMode("url")}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
-                mode === "url"
+                inputMode === "url"
                   ? "bg-white text-gray-900 shadow-sm"
                   : "text-gray-500 hover:text-gray-900",
               )}
@@ -109,10 +202,10 @@ export function AnalyzeForm({
             </button>
             <button
               type="button"
-              onClick={() => setMode("text")}
+              onClick={() => setInputMode("text")}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
-                mode === "text"
+                inputMode === "text"
                   ? "bg-white text-gray-900 shadow-sm"
                   : "text-gray-500 hover:text-gray-900",
               )}
@@ -123,7 +216,7 @@ export function AnalyzeForm({
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === "url" ? (
+            {inputMode === "url" ? (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Landing page URL
@@ -173,6 +266,26 @@ export function AnalyzeForm({
               </div>
             )}
 
+            {/* SERP keyword input */}
+            {analysisType === "serp" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Target keyword
+                </label>
+                <input
+                  type="text"
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  placeholder="e.g. CRM software for small business"
+                  disabled={isLoading}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all disabled:opacity-50"
+                />
+                <p className="text-xs text-gray-500 mt-1.5">
+                  We&apos;ll pull the top organic results for this keyword and benchmark your page against them.
+                </p>
+              </div>
+            )}
+
             {error && (
               <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -197,7 +310,7 @@ export function AnalyzeForm({
                 </>
               ) : (
                 <>
-                  Score my page
+                  {ctaLabel}
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}

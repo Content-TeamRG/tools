@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { AnalyzeResult, RewriteResult, SerpResult } from "@/lib/types";
 import {
   ArrowLeft,
@@ -35,11 +35,15 @@ type Tab = "overview" | "findings" | "heatmap" | "rewrite" | "serp";
 export function ResultsPanel({
   result,
   onReset,
+  initialTab,
+  autoSerpKeyword,
 }: {
   result: AnalyzeResult;
   onReset: () => void;
+  initialTab?: Tab | null;
+  autoSerpKeyword?: string | null;
 }) {
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>(initialTab ?? "overview");
   const [sevFilter, setSevFilter] = useState<"all" | "high" | "medium" | "low">(
     "all",
   );
@@ -50,6 +54,13 @@ export function ResultsPanel({
   const [serp, setSerp] = useState<SerpResult | null>(null);
   const [serpLoading, setSerpLoading] = useState(false);
   const [serpError, setSerpError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (autoSerpKeyword && !serp && !serpLoading) {
+      handleGenerateSerp(autoSerpKeyword);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const grade = gradeFromScore(result.overall_score);
   const p = pct(result.overall_score, 100);
@@ -350,6 +361,9 @@ export function ResultsPanel({
           serpThemesCount={
             serp?.your_page_position.differentiation_themes.length ?? 0
           }
+          originalText={result.meta.original_text}
+          findings={result.findings}
+          sentenceScores={result.sentence_scores}
           onGenerate={handleGenerateRewrite}
           onSwitchToSerp={() => setTab("serp")}
         />
