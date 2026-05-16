@@ -2,21 +2,31 @@
 
 import { useState } from "react";
 import { NavBar } from "@/components/NavBar";
-import {
-  AnalyzeForm,
-  type AnalyzeFormSubmit,
-} from "@/components/AnalyzeForm";
+import { AnalyzeForm, type AnalyzeFormSubmit } from "@/components/AnalyzeForm";
 import { ResultsPanel } from "@/components/ResultsPanel";
+import { SessionSidebar, type SessionEntry } from "@/components/SessionSidebar";
 import type { AnalyzeResult } from "@/lib/types";
 
 type Tab = "overview" | "findings" | "heatmap" | "rewrite" | "serp";
 
+let idCounter = 0;
+function nextId() {
+  return `session-${++idCounter}`;
+}
+
 export default function HomePage() {
+  const [sessions, setSessions] = useState<SessionEntry[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<AnalyzeResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [initialTab, setInitialTab] = useState<Tab | null>(null);
-  const [autoSerpKeyword, setAutoSerpKeyword] = useState<string | null>(null);
+
+  // pending SERP keyword to auto-trigger after analysis
+  const [pendingSerp, setPendingSerp] = useState<{
+    keyword: string;
+    initialTab: Tab;
+  } | null>(null);
+
+  const activeSession = sessions.find((s) => s.id === activeId) ?? null;
 
   async function handleSubmit(data: AnalyzeFormSubmit) {
     setIsLoading(true);
@@ -39,11 +49,20 @@ export default function HomePage() {
             (json.detail ? ` — ${json.detail}` : ""),
         );
       }
-      setResult(json as AnalyzeResult);
-      setInitialTab(data.analysisType === "serp" ? "serp" : "overview");
-      setAutoSerpKeyword(
-        data.analysisType === "serp" && data.keyword ? data.keyword : null,
-      );
+      const result = json as AnalyzeResult;
+      const id = nextId();
+      setSessions((prev) => [
+        { id, result, createdAt: Date.now() },
+        ...prev,
+      ]);
+      setActiveId(id);
+
+      if (data.analysisType === "serp" && data.keyword) {
+        setPendingSerp({ keyword: data.keyword, initialTab: "serp" });
+      } else {
+        setPendingSerp(null);
+      }
+
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
       setError((e as Error).message);
@@ -52,30 +71,48 @@ export default function HomePage() {
     }
   }
 
-  function handleReset() {
-    setResult(null);
+  function handleNewAnalysis() {
+    setActiveId(null);
     setError(null);
-    setInitialTab(null);
-    setAutoSerpKeyword(null);
+    setPendingSerp(null);
   }
 
+  const hasSessions = sessions.length > 0;
+
   return (
-    <main className="min-h-screen bg-white">
-      <NavBar onReset={handleReset} />
-      {result ? (
-        <ResultsPanel
-          result={result}
-          onReset={handleReset}
-          initialTab={initialTab}
-          autoSerpKeyword={autoSerpKeyword}
-        />
-      ) : (
-        <AnalyzeForm
-          onSubmit={handleSubmit}
-          isLoading={isLoading}
-          error={error}
-        />
-      )}
+    <main className="min-h-screen bg-gray-50 flex flex-col">
+      <NavBar
+        onLogoClick={hasSessions ? handleNewAnalysis : undefined}
+        onNewAnalysis={hasSessions ? handleNewAnalysis : undefined}
+      />
+
+      <div className="flex flex-1 min-h-0">
+        {hasSessions && (
+          <SessionSidebar
+            sessions={sessions}
+            activeId={activeId}
+            onSelect={setActiveId}
+          />
+        )}
+
+        <div className="flex-1 min-w-0 overflow-y-auto">
+          {activeSession ? (
+            <ResultsPanel
+              result={activeSession.result}
+              onReset={handleNewAnalysis}
+              initialTab={pendingSerp?.initialTab ?? null}
+              autoSerpKeyword={pendingSerp?.keyword ?? null}
+            />
+          ) : (
+            <AnalyzeForm
+              onSubmit={handleSubmit}
+              isLoading={isLoading}
+              error={error}
+              compact={hasSessions}
+            />
+          )}
+        </div>
+      </div>
     </main>
   );
 }

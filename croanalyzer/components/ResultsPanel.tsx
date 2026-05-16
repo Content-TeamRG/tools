@@ -173,13 +173,10 @@ export function ResultsPanel({
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 animate-fade-in">
       <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={onReset}
-          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Analyze another page
-        </button>
+        <div className="text-sm text-gray-500 flex items-center gap-1.5">
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Use <span className="font-medium text-gray-700">New analysis</span> in the top bar to start another
+        </div>
         <button
           onClick={handleDownload}
           disabled={downloading}
