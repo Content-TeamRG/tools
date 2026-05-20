@@ -64,7 +64,7 @@ async function analyzeRepoUncached(snapshot: RepoSnapshot): Promise<Architecture
   const isKeyFile = (path: string) => KEY_PATTERNS.some((p) => p.test(path))
 
   const filesSummary = snapshot.files
-    .map((f) => `### ${f.path}\n${f.content.slice(0, isKeyFile(f.path) ? 2000 : 400)}`)
+    .map((f) => `### ${f.path}\n${f.content.slice(0, isKeyFile(f.path) ? 3000 : 500)}`)
     .join("\n\n---\n\n")
 
   const prompt = `You are a software architect. Analyze this codebase and return ONLY valid JSON (no markdown, no fences) matching this exact shape:
