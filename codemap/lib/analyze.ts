@@ -58,14 +58,27 @@ async function analyzeRepoUncached(snapshot: RepoSnapshot): Promise<Architecture
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY env var is not set")
   const client = new Anthropic({ apiKey })
 
-  // Key files get full content, everything else gets a shorter excerpt.
-  // This keeps quality high for important files while staying under token limits.
   const KEY_PATTERNS = [/route\.ts$/, /page\.tsx$/, /layout\.tsx$/, /middleware/, /api/, /lib\//, /utils?\//, /service/, /package\.json$/]
-  const isKeyFile = (path: string) => KEY_PATTERNS.some((p) => p.test(path))
+  const isKeyFile = (p: string) => KEY_PATTERNS.some((r) => r.test(p))
 
-  const filesSummary = snapshot.files
-    .map((f) => `### ${f.path}\n${f.content.slice(0, isKeyFile(f.path) ? 3000 : 500)}`)
-    .join("\n\n---\n\n")
+  // Budget: ~80k chars ≈ 20k tokens, safely under the 30k/min input limit.
+  // Key files first so the most important context fills the budget first.
+  const KEY_LIMIT = 3000
+  const OTHER_LIMIT = 500
+  const CHAR_BUDGET = 80_000
+  const sorted = [
+    ...snapshot.files.filter((f) => isKeyFile(f.path)),
+    ...snapshot.files.filter((f) => !isKeyFile(f.path)),
+  ]
+  let remaining = CHAR_BUDGET
+  const trimmed: { path: string; excerpt: string }[] = []
+  for (const f of sorted) {
+    if (remaining <= 0) break
+    const excerpt = f.content.slice(0, isKeyFile(f.path) ? KEY_LIMIT : OTHER_LIMIT)
+    trimmed.push({ path: f.path, excerpt })
+    remaining -= excerpt.length
+  }
+  const filesSummary = trimmed.map((f) => `### ${f.path}\n${f.excerpt}`).join("\n\n---\n\n")
 
   const prompt = `You are a software architect. Analyze this codebase and return ONLY valid JSON (no markdown, no fences) matching this exact shape:
 
@@ -144,11 +157,25 @@ ${filesSummary}
 
 Return ONLY the JSON. No markdown fences.`
 
-  const message = await client.messages.create({
-    model: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6",
-    max_tokens: 8096,
-    messages: [{ role: "user", content: prompt }],
-  })
+  let message: Anthropic.Message | undefined
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      message = await client.messages.create({
+        model: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6",
+        max_tokens: 8096,
+        messages: [{ role: "user", content: prompt }],
+      })
+      break
+    } catch (e: any) {
+      if (e?.status === 429 && attempt < 3) {
+        const retryAfter = parseInt(e?.headers?.get?.("retry-after") ?? "65")
+        await new Promise((r) => setTimeout(r, retryAfter * 1000))
+        continue
+      }
+      throw e
+    }
+  }
+  if (!message) throw new Error("Analysis failed after retries")
 
   const text = message.content[0].type === "text" ? message.content[0].text : ""
   const cleaned = text.replace(/^```(?:json)?\n?/m, "").replace(/\n?```$/m, "").trim()
