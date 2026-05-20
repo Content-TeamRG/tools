@@ -58,8 +58,13 @@ async function analyzeRepoUncached(snapshot: RepoSnapshot): Promise<Architecture
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY env var is not set")
   const client = new Anthropic({ apiKey })
 
+  // Key files get full content, everything else gets a shorter excerpt.
+  // This keeps quality high for important files while staying under token limits.
+  const KEY_PATTERNS = [/route\.ts$/, /page\.tsx$/, /layout\.tsx$/, /middleware/, /api/, /lib\//, /utils?\//, /service/, /package\.json$/]
+  const isKeyFile = (path: string) => KEY_PATTERNS.some((p) => p.test(path))
+
   const filesSummary = snapshot.files
-    .map((f) => `### ${f.path}\n${f.content.slice(0, 600)}`)
+    .map((f) => `### ${f.path}\n${f.content.slice(0, isKeyFile(f.path) ? 2000 : 400)}`)
     .join("\n\n---\n\n")
 
   const prompt = `You are a software architect. Analyze this codebase and return ONLY valid JSON (no markdown, no fences) matching this exact shape:
