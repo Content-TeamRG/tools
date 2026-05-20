@@ -59,7 +59,7 @@ async function analyzeRepoUncached(snapshot: RepoSnapshot): Promise<Architecture
   const client = new Anthropic({ apiKey })
 
   const filesSummary = snapshot.files
-    .map((f) => `### ${f.path}\n${f.content.slice(0, 3000)}`)
+    .map((f) => `### ${f.path}\n${f.content.slice(0, 600)}`)
     .join("\n\n---\n\n")
 
   const prompt = `You are a software architect. Analyze this codebase and return ONLY valid JSON (no markdown, no fences) matching this exact shape:
