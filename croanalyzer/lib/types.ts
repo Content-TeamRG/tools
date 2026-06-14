@@ -83,7 +83,7 @@ export interface RewriteChange {
   reason: string;
 }
 
-export type RewriteMode = "mistakes" | "serp" | "both";
+export type RewriteMode = "mistakes" | "serp" | "both" | "competitor";
 
 export interface RewriteResult {
   rewritten_text: string;
@@ -106,6 +106,18 @@ export interface RewriteSerpInput {
   vs_cluster_gaps: string;
 }
 
+export interface RewriteCompetitorInput {
+  competitor_label: string;
+  competitor_value_prop: string;
+  competitor_summary: string;
+  modules_competitor_wins: {
+    name: string;
+    your_pct: number;
+    competitor_pct: number;
+    competitor_diagnosis: string;
+  }[];
+}
+
 export interface RewriteRequest {
   mode: RewriteMode;
   original_text: string;
@@ -113,6 +125,7 @@ export interface RewriteRequest {
   findings?: Finding[];
   weak_sentences?: SentenceScore[];
   serp?: RewriteSerpInput;
+  competitor?: RewriteCompetitorInput;
   page_title?: string;
 }
 

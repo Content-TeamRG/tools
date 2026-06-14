@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { AnalyzeResult, RewriteResult, SerpResult } from "@/lib/types";
+import type {
+  AnalyzeResult,
+  RewriteResult,
+  SerpResult,
+  RewriteMode,
+  RewriteCompetitorInput,
+} from "@/lib/types";
 import {
   ArrowLeft,
   Download,
@@ -30,6 +36,42 @@ import { RewriteTab } from "./RewriteTab";
 import { SerpTab } from "./SerpTab";
 import { generateTextPdf } from "@/lib/pdf";
 
+function buildCompetitorInput(
+  a: AnalyzeResult,
+  b: AnalyzeResult,
+): RewriteCompetitorInput {
+  let label = b.meta.page_title || "competitor";
+  if (b.meta.page_url) {
+    try {
+      label = new URL(b.meta.page_url).hostname.replace(/^www\./, "");
+    } catch {
+      /* keep fallback */
+    }
+  }
+  const wins = a.module_scores
+    .map((m) => {
+      const bm = b.module_scores.find((x) => x.id === m.id);
+      if (!bm) return null;
+      const yourPct = pct(m.score, m.max);
+      const compPct = pct(bm.score, bm.max);
+      return compPct > yourPct
+        ? {
+            name: m.name,
+            your_pct: yourPct,
+            competitor_pct: compPct,
+            competitor_diagnosis: bm.one_line_diagnosis,
+          }
+        : null;
+    })
+    .filter(Boolean) as RewriteCompetitorInput["modules_competitor_wins"];
+  return {
+    competitor_label: label,
+    competitor_value_prop: b.page_context.core_value_prop,
+    competitor_summary: b.summary,
+    modules_competitor_wins: wins,
+  };
+}
+
 type Tab = "overview" | "findings" | "heatmap" | "rewrite" | "serp";
 
 export function ResultsPanel({
@@ -54,6 +96,10 @@ export function ResultsPanel({
   const [serp, setSerp] = useState<SerpResult | null>(null);
   const [serpLoading, setSerpLoading] = useState(false);
   const [serpError, setSerpError] = useState<string | null>(null);
+  const [competitor, setCompetitor] = useState<{
+    url: string;
+    analysis: AnalyzeResult;
+  } | null>(null);
 
   useEffect(() => {
     if (autoSerpKeyword && !serp && !serpLoading) {
@@ -87,11 +133,65 @@ export function ResultsPanel({
   }
 
   async function handleGenerateRewrite(
-    mode: "mistakes" | "serp" | "both" = "mistakes",
+    mode: RewriteMode = "mistakes",
+    competitorUrl?: string,
   ) {
     if (rewriteLoading) return;
     setRewriteLoading(true);
     setRewriteError(null);
+
+    if (mode === "competitor") {
+      try {
+        if (!competitorUrl) {
+          throw new Error("Enter a competitor URL to position against.");
+        }
+        let comp =
+          competitor && competitor.url === competitorUrl
+            ? competitor.analysis
+            : null;
+        if (!comp) {
+          const cres = await fetch("/api/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mode: "url", url: competitorUrl }),
+          });
+          const cjson = await cres.json();
+          if (!cres.ok) {
+            throw new Error(
+              (cjson.error || "Competitor analysis failed") +
+                (cjson.detail ? ` — ${cjson.detail}` : ""),
+            );
+          }
+          comp = cjson as AnalyzeResult;
+          setCompetitor({ url: competitorUrl, analysis: comp });
+        }
+        const res = await fetch("/api/rewrite", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: "competitor",
+            original_text: result.meta.original_text,
+            page_context: result.page_context,
+            competitor: buildCompetitorInput(result, comp),
+            page_title: result.meta.page_title,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          throw new Error(
+            (json.error || "Rewrite failed") +
+              (json.detail ? ` — ${json.detail}` : ""),
+          );
+        }
+        setRewrite(json as RewriteResult);
+      } catch (e) {
+        setRewriteError((e as Error).message);
+      } finally {
+        setRewriteLoading(false);
+      }
+      return;
+    }
+
     try {
       const serpInput = serp
         ? {

@@ -12,7 +12,7 @@ const SONNET = "claude-sonnet-4-6";
 export async function callExtraction(system: string, user: string) {
   const res = await client.messages.create({
     model: HAIKU,
-    max_tokens: 1500,
+    max_tokens: 2500,
     system,
     messages: [{ role: "user", content: user }],
   });
@@ -26,7 +26,7 @@ export async function callExtraction(system: string, user: string) {
 export async function callScoring(
   systemBlocks: SystemBlock[],
   user: string,
-  maxTokens = 8000,
+  maxTokens = 16000,
 ) {
   const res = await client.messages.create({
     model: SONNET,
@@ -97,7 +97,7 @@ export async function callSerpSearch(system: string, user: string) {
 export async function callSwot(
   systemBlocks: SystemBlock[],
   user: string,
-  maxTokens = 4000,
+  maxTokens = 8000,
 ) {
   const res = await client.messages.create({
     model: SONNET,

@@ -1,6 +1,7 @@
 import type {
   Finding,
   PageContext,
+  RewriteCompetitorInput,
   RewriteMode,
   RewriteSerpInput,
   SentenceScore,
@@ -22,6 +23,12 @@ export function buildRewriteSystemBlocks(mode: RewriteMode): SystemBlock[] {
 - Reframe the page (especially the hero, value prop, and core benefit lines) to lean into the differentiation themes the SERP analysis surfaced.
 - Strengthen positioning where the competitor cluster is weak (cluster_weaknesses) and where no one else is playing (swot_opportunities).
 - Goal: same page, sharper positioning vs the competitive cluster.`
+        : mode === "competitor"
+          ? `MODE: APPLY COMPETITOR POSITIONING ONLY.
+- Do NOT fix individual copy mistakes from a CRO scoring pass — those are out of scope here.
+- Reframe the page (especially the hero, value prop, and core benefit lines) to win against ONE specific competitor, using the head-to-head comparison provided.
+- Focus on the modules where the competitor outscores this page — close those gaps in the copy and assert a sharper, differentiated angle.
+- Goal: same page, positioned to beat this specific competitor.`
         : `MODE: FIX MISTAKES + APPLY SERP POSITIONING.
 - Apply both layers in one rewrite.
 - Apply the explicit rewrite_suggestion for each finding and fix weak/mid sentences using the rubric.
@@ -58,6 +65,8 @@ HARD RULES (apply to all modes, non-negotiable):
 
 5. APPLY SERP POSITIONING. (SERP & Both modes only) For each differentiation theme, weave it into the page where it naturally fits — especially the hero, value prop, and core benefit lines. For each cluster weakness or opportunity, add or rewrite copy that explicitly addresses what competitors miss. Use the page's own terminology, not jargon from the SERP results.
 
+5b. APPLY COMPETITOR POSITIONING. (Competitor mode only) Use the head-to-head comparison to rewrite the hero, value prop, and benefit copy so it closes the specific modules where the competitor outscores this page and counters their value proposition — using THIS page's own facts and terminology. Never name the competitor.
+
 6. VOICE MATCH. Maintain the tone described in PageContext.voice_markers.tone, the formality level, and the perspective (we / you / third-person).
 
 7. NO RUBRIC LEAKAGE. Never use the rubric's example phrases, example CTAs, or example industries in the output.
@@ -90,10 +99,12 @@ export function buildRewriteUser(
   findings: Finding[],
   weakSentences: SentenceScore[],
   serp: RewriteSerpInput | undefined,
+  competitor: RewriteCompetitorInput | undefined,
   pageTitle: string,
 ): string {
   const includeMistakes = mode === "mistakes" || mode === "both";
   const includeSerp = (mode === "serp" || mode === "both") && !!serp;
+  const includeCompetitor = mode === "competitor" && !!competitor;
 
   const findingsBlock =
     includeMistakes && findings.length > 0
@@ -135,6 +146,21 @@ CONTEXT — your page vs the cluster:
 - Where the user's page shares the cluster's gaps: ${serp!.vs_cluster_gaps}`
     : "";
 
+  const competitorBlock = includeCompetitor
+    ? `COMPETITOR (head-to-head — never name them in the output):
+- Competitor page: ${competitor!.competitor_label}
+- Their value proposition: ${competitor!.competitor_value_prop}
+- Their page summary: ${competitor!.competitor_summary}
+
+MODULES WHERE THE COMPETITOR OUTSCORES THIS PAGE (close each gap in the copy):
+${competitor!.modules_competitor_wins
+  .map(
+    (m, i) =>
+      `${i + 1}. ${m.name} — you ${m.your_pct}% vs them ${m.competitor_pct}%. Their edge: ${m.competitor_diagnosis}`,
+  )
+  .join("\n")}`
+    : "";
+
   const sections: string[] = [];
   sections.push(`PAGE TITLE: ${pageTitle || "(untitled)"}`);
   sections.push(
@@ -157,6 +183,10 @@ CONTEXT — your page vs the cluster:
 
   if (includeSerp) {
     sections.push(`SERP COMPETITIVE INPUT:\n${serpBlock}`);
+  }
+
+  if (includeCompetitor) {
+    sections.push(`HEAD-TO-HEAD COMPETITOR INPUT:\n${competitorBlock}`);
   }
 
   sections.push(

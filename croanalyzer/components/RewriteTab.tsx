@@ -11,6 +11,7 @@ import {
   Sparkles,
   Search,
   Target,
+  Swords,
 } from "lucide-react";
 import type { Finding, RewriteMode, RewriteResult, SentenceScore } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -27,7 +28,7 @@ interface RewriteTabProps {
   originalText: string;
   findings: Finding[];
   sentenceScores: SentenceScore[];
-  onGenerate: (mode: RewriteMode) => void;
+  onGenerate: (mode: RewriteMode, competitorUrl?: string) => void;
   onSwitchToSerp: () => void;
 }
 
@@ -52,13 +53,75 @@ const MODES: Array<{
       "Don't fix individual copy mistakes. Reframe the hero, value prop, and core benefit lines to lean into the differentiation themes the SERP analysis surfaced.",
   },
   {
+    id: "competitor",
+    label: "Competitor positioning",
+    icon: Swords,
+    description:
+      "Reframe the page to beat ONE specific competitor. We analyze the competitor's page, find the modules where they outscore you, and rewrite to close those gaps.",
+  },
+  {
     id: "both",
-    label: "Both",
+    label: "Both (mistakes + SERP)",
     icon: Target,
     description:
       "Fix every finding AND reframe positioning using the SERP differentiation themes. Best-quality rewrite — recommended once you've run the SERP analysis.",
   },
 ];
+
+function CompetitorField({
+  url,
+  setUrl,
+  loading,
+  onRun,
+}: {
+  url: string;
+  setUrl: (v: string) => void;
+  loading: boolean;
+  onRun: (url: string) => void;
+}) {
+  return (
+    <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-4">
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Competitor URL to position against
+      </label>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://competitor.com/landing-page"
+          disabled={loading}
+          className="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all disabled:opacity-50"
+        />
+        <button
+          onClick={() => onRun(url.trim())}
+          disabled={loading || !url.trim()}
+          className={cn(
+            "inline-flex items-center gap-2 px-5 rounded-xl font-semibold text-sm transition-all shrink-0",
+            loading || !url.trim()
+              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              : "bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-700 hover:to-purple-700 shadow-lg shadow-violet-600/20",
+          )}
+        >
+          {loading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Analyzing…
+            </>
+          ) : (
+            <>
+              <Swords className="w-4 h-4" />
+              Rewrite vs competitor
+            </>
+          )}
+        </button>
+      </div>
+      <p className="text-xs text-gray-500 mt-2">
+        We analyze this competitor, find where they beat your page, and rewrite to close the gap.
+      </p>
+    </div>
+  );
+}
 
 export function RewriteTab({
   result,
@@ -76,9 +139,11 @@ export function RewriteTab({
 }: RewriteTabProps) {
   const [mode, setMode] = useState<RewriteMode>("mistakes");
   const [copied, setCopied] = useState(false);
+  const [competitorUrl, setCompetitorUrl] = useState("");
 
   const modeNeedsSerp = mode === "serp" || mode === "both";
   const blocked = modeNeedsSerp && !hasSerp;
+  const isCompetitor = mode === "competitor";
 
   async function handleCopy() {
     if (!result) return;
@@ -233,6 +298,13 @@ export function RewriteTab({
                 Go to SERP tab
               </button>
             </div>
+          ) : isCompetitor ? (
+            <CompetitorField
+              url={competitorUrl}
+              setUrl={setCompetitorUrl}
+              loading={loading}
+              onRun={(u) => onGenerate("competitor", u)}
+            />
           ) : (
             <button
               onClick={() => onGenerate(mode)}
@@ -318,25 +390,27 @@ export function RewriteTab({
             <Download className="w-3.5 h-3.5" />
             Download .txt
           </button>
-          <button
-            onClick={() => onGenerate(mode)}
-            disabled={loading || blocked}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-violet-50 border border-violet-200 hover:bg-violet-100 text-violet-700 text-sm font-medium transition-colors disabled:opacity-50"
-          >
-            {loading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Wand2 className="w-3.5 h-3.5" />
-            )}
-            {mode === result.mode_used
-              ? "Try again"
-              : `Try ${MODES.find((m) => m.id === mode)?.label.toLowerCase()}`}
-          </button>
+          {!isCompetitor && (
+            <button
+              onClick={() => onGenerate(mode)}
+              disabled={loading || blocked}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-violet-50 border border-violet-200 hover:bg-violet-100 text-violet-700 text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              {loading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Wand2 className="w-3.5 h-3.5" />
+              )}
+              {mode === result.mode_used
+                ? "Try again"
+                : `Try ${MODES.find((m) => m.id === mode)?.label.toLowerCase()}`}
+            </button>
+          )}
         </div>
       </div>
 
       {/* Mode switcher */}
-      <div className="flex gap-1 p-1 bg-gray-100 rounded-lg w-fit">
+      <div className="flex gap-1 p-1 bg-gray-100 rounded-lg w-fit flex-wrap">
         {MODES.map((m) => {
           const requiresSerp = m.id === "serp" || m.id === "both";
           const isDisabled = requiresSerp && !hasSerp;
@@ -358,6 +432,22 @@ export function RewriteTab({
           );
         })}
       </div>
+
+      {/* Competitor URL field — shown when competitor mode is selected */}
+      {isCompetitor && (
+        <CompetitorField
+          url={competitorUrl}
+          setUrl={setCompetitorUrl}
+          loading={loading}
+          onRun={(u) => onGenerate("competitor", u)}
+        />
+      )}
+
+      {error && (
+        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Split diff view */}
       <RewriteDiffView

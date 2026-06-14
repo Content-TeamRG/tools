@@ -65,12 +65,23 @@ export async function POST(req: NextRequest) {
   const findings = body.findings || [];
   const weakSentences = body.weak_sentences || [];
   const serp = body.serp;
+  const competitor = body.competitor;
 
   if ((mode === "serp" || mode === "both") && !serp) {
     return NextResponse.json(
       {
         error:
           "Mode requires SERP analysis input. Run the SERP analysis first, then retry.",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (mode === "competitor" && !competitor) {
+    return NextResponse.json(
+      {
+        error:
+          "Competitor mode requires a competitor comparison. Pick a competitor in the Rewrite tab, then retry.",
       },
       { status: 400 },
     );
@@ -97,6 +108,7 @@ export async function POST(req: NextRequest) {
         findings,
         weakSentences,
         serp,
+        competitor,
         body.page_title || "",
       ),
     );

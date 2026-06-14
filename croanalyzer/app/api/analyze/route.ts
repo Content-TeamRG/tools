@@ -17,8 +17,8 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const RATE_LIMIT_PER_MINUTE = Number(process.env.RATE_LIMIT_PER_MINUTE ?? 3);
-const MAX_INPUT_WORDS = Number(process.env.MAX_INPUT_WORDS ?? 3000);
-const MAX_SENTENCES = 200;
+const MAX_INPUT_WORDS = Number(process.env.MAX_INPUT_WORDS ?? 10000);
+const MAX_SENTENCES = Number(process.env.MAX_SENTENCES ?? 600);
 
 const ipBuckets = new Map<string, { count: number; resetAt: number }>();
 function rateLimitOk(ip: string): boolean {
