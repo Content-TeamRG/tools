@@ -11,11 +11,12 @@ import {
   CheckCircle,
   BarChart2,
   TrendingUp,
+  Swords,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type InputMode = "url" | "text";
-type AnalysisType = "audit" | "serp";
+type AnalysisType = "audit" | "serp" | "compare";
 
 export interface AnalyzeFormSubmit {
   mode: InputMode;
@@ -24,6 +25,8 @@ export interface AnalyzeFormSubmit {
   title?: string;
   analysisType: AnalysisType;
   keyword?: string;
+  urlA?: string;
+  urlB?: string;
 }
 
 const FEATURES = [
@@ -52,10 +55,22 @@ export function AnalyzeForm({
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
   const [keyword, setKeyword] = useState("");
+  const [urlA, setUrlA] = useState("");
+  const [urlB, setUrlB] = useState("");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (isLoading) return;
+    if (analysisType === "compare") {
+      if (!urlA.trim() || !urlB.trim()) return;
+      onSubmit({
+        mode: "url",
+        analysisType: "compare",
+        urlA: urlA.trim(),
+        urlB: urlB.trim(),
+      });
+      return;
+    }
     if (inputMode === "url") {
       if (!url.trim()) return;
       onSubmit({ mode: "url", url: url.trim(), analysisType, keyword: keyword.trim() || undefined });
@@ -65,10 +80,20 @@ export function AnalyzeForm({
     }
   }
 
-  const hasContent = inputMode === "url" ? !!url.trim() : !!text.trim();
+  const hasContent =
+    analysisType === "compare"
+      ? !!urlA.trim() && !!urlB.trim()
+      : inputMode === "url"
+      ? !!url.trim()
+      : !!text.trim();
   const serpNeedsKeyword = analysisType === "serp" && !keyword.trim();
   const disabled = isLoading || !hasContent || serpNeedsKeyword;
-  const ctaLabel = analysisType === "serp" ? "Analyze & compare to SERP" : "Score my page";
+  const ctaLabel =
+    analysisType === "compare"
+      ? "Compare both pages"
+      : analysisType === "serp"
+      ? "Analyze & compare to SERP"
+      : "Score my page";
 
   const formBody = (
     <div className="space-y-5">
@@ -77,14 +102,26 @@ export function AnalyzeForm({
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
           Analysis type
         </p>
-        <div className="grid grid-cols-2 gap-2">
-          {(["audit", "serp"] as const).map((type) => {
-            const Icon = type === "audit" ? BarChart2 : TrendingUp;
-            const label = type === "audit" ? "Page audit" : "SERP comparison";
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {(["audit", "serp", "compare"] as const).map((type) => {
+            const Icon =
+              type === "audit"
+                ? BarChart2
+                : type === "serp"
+                ? TrendingUp
+                : Swords;
+            const label =
+              type === "audit"
+                ? "Page audit"
+                : type === "serp"
+                ? "SERP comparison"
+                : "Competitive analysis";
             const desc =
               type === "audit"
                 ? "Score against a 100-point CRO rubric and get rewrite suggestions."
-                : "Compare against top-ranking competitors for a keyword.";
+                : type === "serp"
+                ? "Compare against top-ranking competitors for a keyword."
+                : "Rank your page against a competitor's, side-by-side.";
             const active = analysisType === type;
             return (
               <button
@@ -111,34 +148,71 @@ export function AnalyzeForm({
         </div>
       </div>
 
-      {/* Input mode toggle */}
-      <div className="flex gap-1 p-1 bg-gray-100 rounded-lg w-fit">
-        <button
-          type="button"
-          onClick={() => setInputMode("url")}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
-            inputMode === "url" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900",
-          )}
-        >
-          <Globe className="w-4 h-4" />
-          URL
-        </button>
-        <button
-          type="button"
-          onClick={() => setInputMode("text")}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
-            inputMode === "text" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900",
-          )}
-        >
-          <FileText className="w-4 h-4" />
-          Paste text
-        </button>
-      </div>
+      {/* Input mode toggle — hidden in compare mode (URL-only) */}
+      {analysisType !== "compare" && (
+        <div className="flex gap-1 p-1 bg-gray-100 rounded-lg w-fit">
+          <button
+            type="button"
+            onClick={() => setInputMode("url")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
+              inputMode === "url" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900",
+            )}
+          >
+            <Globe className="w-4 h-4" />
+            URL
+          </button>
+          <button
+            type="button"
+            onClick={() => setInputMode("text")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
+              inputMode === "text" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900",
+            )}
+          >
+            <FileText className="w-4 h-4" />
+            Paste text
+          </button>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {inputMode === "url" ? (
+        {analysisType === "compare" ? (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Your page URL
+              </label>
+              <input
+                type="url"
+                value={urlA}
+                onChange={(e) => setUrlA(e.target.value)}
+                placeholder="https://your-site.com/landing-page"
+                required
+                disabled={isLoading}
+                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all disabled:opacity-50"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Competitor page URL
+              </label>
+              <input
+                type="url"
+                value={urlB}
+                onChange={(e) => setUrlB(e.target.value)}
+                placeholder="https://competitor.com/landing-page"
+                required
+                disabled={isLoading}
+                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all disabled:opacity-50"
+              />
+            </div>
+            <p className="text-xs text-gray-400">
+              We&apos;ll score both pages with the same 100-point rubric and
+              show a split view of who wins, module by module.
+            </p>
+          </div>
+        ) : inputMode === "url" ? (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Landing page URL
@@ -227,7 +301,9 @@ export function AnalyzeForm({
           {isLoading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Analyzing page&hellip;
+              {analysisType === "compare"
+                ? "Scoring both pages…"
+                : "Analyzing page…"}
             </>
           ) : (
             <>

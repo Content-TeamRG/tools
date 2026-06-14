@@ -4,11 +4,19 @@ import { cn } from "@/lib/utils";
 import { gradeFromScore, gradeBg } from "@/lib/utils";
 import type { AnalyzeResult } from "@/lib/types";
 
-export interface SessionEntry {
-  id: string;
-  result: AnalyzeResult;
-  createdAt: number;
-}
+export type SessionEntry =
+  | {
+      id: string;
+      kind: "single";
+      result: AnalyzeResult;
+      createdAt: number;
+    }
+  | {
+      id: string;
+      kind: "compare";
+      pair: { a: AnalyzeResult; b: AnalyzeResult };
+      createdAt: number;
+    };
 
 function getLabel(result: AnalyzeResult): string {
   if (result.meta.page_url) {
@@ -60,8 +68,60 @@ export function SessionSidebar({
           </div>
         ) : (
           sessions.map((s) => {
-            const grade = gradeFromScore(s.result.overall_score);
             const isActive = s.id === activeId;
+
+            if (s.kind === "compare") {
+              const gA = gradeFromScore(s.pair.a.overall_score);
+              const gB = gradeFromScore(s.pair.b.overall_score);
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => onSelect(s.id)}
+                  className={cn(
+                    "w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-3 transition-colors group",
+                    isActive
+                      ? "bg-violet-50 border border-violet-200"
+                      : "hover:bg-gray-50 border border-transparent",
+                  )}
+                >
+                  <div className="flex items-center -space-x-1.5 shrink-0">
+                    <div
+                      className={cn(
+                        "w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-black shadow-sm ring-2 ring-white",
+                        gradeBg(gA),
+                      )}
+                    >
+                      {gA}
+                    </div>
+                    <div
+                      className={cn(
+                        "w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-black shadow-sm ring-2 ring-white",
+                        gradeBg(gB),
+                      )}
+                    >
+                      {gB}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className={cn(
+                        "text-xs font-medium truncate",
+                        isActive ? "text-violet-900" : "text-gray-800",
+                      )}
+                    >
+                      {getLabel(s.pair.a)} <span className="text-gray-400">vs</span>{" "}
+                      {getLabel(s.pair.b)}
+                    </p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">
+                      {s.pair.a.overall_score} vs {s.pair.b.overall_score} ·{" "}
+                      {timeAgo(s.createdAt)}
+                    </p>
+                  </div>
+                </button>
+              );
+            }
+
+            const grade = gradeFromScore(s.result.overall_score);
             return (
               <button
                 key={s.id}
